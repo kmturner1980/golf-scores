@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach Admin — Golf Scores</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<header class="app-header">
+  <h1>⛳ Coach Admin</h1>
+  <p>Roster, rounds, and season stats</p>
+</header>
+<main>
+  <div id="loginCard" class="card">
+    <h2>Coach Login</h2>
+    <div id="loginMessage"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="password">Admin Password</label>
+        <input type="password" id="password" required>
+      </div>
+      <button type="submit" id="loginBtn">Log In</button>
+    </form>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="card">
+      <h2>Team Totals</h2>
+      <div id="teamTiles" class="stat-grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Add Player</h2>
+      <div id="addPlayerMessage"></div>
+      <form id="addPlayerForm" class="field-row" style="align-items:end">
+        <div class="field" style="margin-bottom:0">
+          <label for="newPlayerName">Player Name</label>
+          <input type="text" id="newPlayerName" required>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="submit">Add Player &amp; Generate Link</button>
+        </div>
+      </form>
+      <div id="newLinkBox" class="link-box hidden" style="margin-top:0.75rem">
+        <input type="text" id="newLinkInput" readonly>
+        <button type="button" id="copyLinkBtn" class="secondary">Copy</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Roster</h2>
+      <div id="rosterTable" class="table-scroll"></div>
+    </div>
+
+    <div id="playerDetail" class="card hidden">
+      <h2 id="playerDetailName"></h2>
+      <div class="link-box" style="margin-bottom:0.75rem">
+        <input type="text" id="playerDetailLink" readonly>
+        <button type="button" id="copyDetailLinkBtn" class="secondary">Copy Link</button>
+      </div>
+      <div id="playerDetailTiles" class="stat-grid" style="margin-bottom:1rem"></div>
+      <div id="playerDetailRounds" class="table-scroll"></div>
+    </div>
+  </div>
+</main>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enter Round — Golf Scores</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<header class="app-header">
+  <h1 id="playerHeading">⛳ Golf Scores</h1>
+  <p id="playerSubheading">Loading…</p>
+</header>
+<main>
+  <div id="loadError" class="error hidden"></div>
+
+  <div id="content" class="hidden">
+    <div class="card">
+      <h2>Season Stats</h2>
+      <div id="statTiles" class="stat-grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Enter a Round</h2>
+      <div id="formMessage"></div>
+      <form id="roundForm">
+        <div class="field-row">
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" required>
+          </div>
+          <div class="field">
+            <label for="holesPlayed">Holes Played</label>
+            <select id="holesPlayed">
+              <option value="18">18 (Full Round)</option>
+              <option value="9F">Front 9</option>
+              <option value="9B">Back 9</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="course">Course</label>
+            <input type="text" id="course" placeholder="e.g. Ridgecrest GC" required>
+          </div>
+          <div class="field">
+            <label for="tees">Tees</label>
+            <input type="text" id="tees" placeholder="e.g. White">
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="hole-table">
+            <thead>
+              <tr>
+                <th>Hole</th>
+                <th>Par</th>
+                <th>Score</th>
+                <th>Fairway</th>
+                <th>GIR</th>
+                <th>Putts</th>
+                <th>Penalty</th>
+              </tr>
+            </thead>
+            <tbody id="holeRows"></tbody>
+          </table>
+        </div>
+
+        <p><strong>Total: <span id="runningTotal">0</span></strong></p>
+
+        <div class="field">
+          <label for="notes">Notes (optional)</label>
+          <input type="text" id="notes" placeholder="Anything worth remembering about this round">
+        </div>
+
+        <button type="submit" id="submitBtn">Submit Round</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Recent Rounds</h2>
+      <div id="recentRounds" class="table-scroll"></div>
+    </div>
+  </div>
+</main>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/player.js"></script>
+</body>
+</html>
