@@ -26,7 +26,14 @@ function submitRound_(token, payload) {
     SubmittedAt: new Date()
   });
 
-  payload.holes.forEach(function (h) {
+  appendHoleScores_(roundId, payload.holes);
+
+  return { roundId: roundId };
+}
+
+/** Shared by submitRound_ and updateRound_: validates and appends hole rows for a round. */
+function appendHoleScores_(roundId, holes) {
+  holes.forEach(function (h) {
     var par = Number(h.par);
     var score = Number(h.score);
     if (!par || !score) {
@@ -43,8 +50,39 @@ function submitRound_(token, payload) {
       Penalties: h.penalty === '' || h.penalty == null ? 0 : Number(h.penalty)
     });
   });
+}
 
-  return { roundId: roundId };
+/**
+ * Admin-only: overwrites an existing round's fields and replaces all of its
+ * hole scores wholesale (simpler and less error-prone than patching
+ * individual cells). The round keeps its RoundID and original owner.
+ */
+function updateRound_(roundId, payload) {
+  if (!roundId) throw new Error('roundId is required.');
+  if (!payload || !payload.holes || !payload.holes.length) {
+    throw new Error('At least one hole score is required.');
+  }
+  if (!payload.date) throw new Error('Date is required.');
+
+  var sheet = getSheet_(SHEET_ROUNDS);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var rowIdx = findRowIndexByValue_(sheet, headers, 'RoundID', roundId);
+  if (rowIdx === -1) throw new Error('Round not found.');
+
+  var updates = {
+    Date: payload.date,
+    Course: (payload.course || '').toString().trim(),
+    Tees: (payload.tees || '').toString().trim(),
+    HolesPlayed: payload.holesPlayed || payload.holes.length,
+    Notes: (payload.notes || '').toString().trim()
+  };
+  Object.keys(updates).forEach(function (key) {
+    var col = headers.indexOf(key) + 1;
+    if (col > 0) sheet.getRange(rowIdx, col).setValue(updates[key]);
+  });
+
+  deleteRowsWhere_(SHEET_HOLE_SCORES, 'RoundID', roundId);
+  appendHoleScores_(roundId, payload.holes);
 }
 
 /** Everything needed to render one player's own history (used by player.html). */

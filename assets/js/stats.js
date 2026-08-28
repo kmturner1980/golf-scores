@@ -86,5 +86,67 @@ const Stats = {
 
   fmtAvg(v) {
     return v == null ? '—' : v.toFixed(1);
+  },
+
+  /**
+   * Rule-of-thumb coaching callouts derived from a player's aggregated
+   * stats (pass the output of withRates(aggregateHoles(...))). These
+   * thresholds are reasonable defaults for high school golf, not a
+   * scientific standard -- a coach should use judgment alongside them.
+   * Returns an array of {area, tip, severity}, worst issues first.
+   */
+  generateAdvice(agg) {
+    const MIN_HOLES = 9;
+    if (!agg.holesPlayed || agg.holesPlayed < MIN_HOLES) {
+      return [{ area: 'Sample size', tip: 'Not enough holes logged yet for reliable advice -- encourage a few more rounds entered first.', severity: 'info' }];
+    }
+
+    const notes = [];
+    const bigNumberRate = (agg.doubles + agg.worse) / agg.holesPlayed;
+    const penaltiesPerHole = agg.totalPenalties / agg.holesPlayed;
+
+    if (agg.puttsCounted >= MIN_HOLES && agg.puttingAvgPer18 != null) {
+      if (agg.puttingAvgPer18 >= 36) {
+        notes.push({ area: 'Putting', tip: `Averaging ${agg.puttingAvgPer18.toFixed(1)} putts per 18 -- that's high. Prioritize putting practice: lag putts from 20-30 ft and cleaning up the 3-5 ft range.`, severity: 'high' });
+      } else if (agg.puttingAvgPer18 >= 33) {
+        notes.push({ area: 'Putting', tip: `Putting average (${agg.puttingAvgPer18.toFixed(1)}/18) has room to improve -- more short-game reps on the practice green.`, severity: 'medium' });
+      }
+    }
+
+    if (bigNumberRate >= 0.25) {
+      notes.push({ area: 'Course management', tip: `Double bogey or worse on ${Math.round(bigNumberRate * 100)}% of holes -- focus on course management: take the safe play near trouble instead of chasing a risky shot.`, severity: 'high' });
+    } else if (bigNumberRate >= 0.15) {
+      notes.push({ area: 'Course management', tip: `Occasional big numbers (${Math.round(bigNumberRate * 100)}% of holes are double bogey or worse) -- work on recognizing when to play conservatively.`, severity: 'medium' });
+    }
+
+    if (agg.fairwaysAttempted >= MIN_HOLES && agg.fairwayPct != null) {
+      if (agg.fairwayPct < 0.40) {
+        notes.push({ area: 'Driving accuracy', tip: `Hitting only ${Math.round(agg.fairwayPct * 100)}% of fairways -- spend practice time on tee shot consistency, and consider clubbing down for accuracy on tight holes.`, severity: 'high' });
+      } else if (agg.fairwayPct < 0.55) {
+        notes.push({ area: 'Driving accuracy', tip: `Fairway accuracy (${Math.round(agg.fairwayPct * 100)}%) is a bit below a solid target of ~55-60% -- keep working on tee shot repeatability.`, severity: 'medium' });
+      }
+    }
+
+    if (agg.girPct != null) {
+      if (agg.girPct < 0.25) {
+        notes.push({ area: 'Approach shots', tip: `Greens in regulation is low (${Math.round(agg.girPct * 100)}%) -- focus on iron/approach practice and distance control.`, severity: 'high' });
+      } else if (agg.girPct < 0.40) {
+        notes.push({ area: 'Approach shots', tip: `GIR (${Math.round(agg.girPct * 100)}%) has room to grow -- more approach-shot practice should help lower scores.`, severity: 'medium' });
+      }
+    }
+
+    if (penaltiesPerHole >= 0.2) {
+      notes.push({ area: 'Hazard avoidance', tip: `Averaging a penalty stroke roughly every ${Math.round(1 / penaltiesPerHole)} holes -- work on course management around water/OB and picking safer targets off the tee.`, severity: 'high' });
+    } else if (penaltiesPerHole >= 0.1) {
+      notes.push({ area: 'Hazard avoidance', tip: 'Penalty strokes are creeping in -- stay mindful of hazards on tee shots.', severity: 'medium' });
+    }
+
+    const severityRank = { high: 0, medium: 1, info: 2 };
+    notes.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
+
+    if (!notes.length) {
+      return [{ area: 'Overall', tip: 'Well-rounded game right now -- no single weak spot stands out. Keep up the current practice mix.', severity: 'info' }];
+    }
+    return notes;
   }
 };

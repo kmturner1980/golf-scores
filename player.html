@@ -4,12 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Enter Round — Golf Scores</title>
+<link rel="icon" href="assets/img/ambrose-golf-logo.png">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
 <header class="app-header">
-  <h1 id="playerHeading">⛳ Golf Scores</h1>
-  <p id="playerSubheading">Loading…</p>
+  <img class="brand-logo" src="assets/img/ambrose-golf-logo.png" alt="Ambrose Golf" onerror="this.remove()">
+  <div>
+    <h1 id="playerHeading">Golf Scores</h1>
+    <p id="playerSubheading">Loading…</p>
+  </div>
 </header>
 <main>
   <div id="loadError" class="error hidden"></div>
@@ -40,14 +44,25 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label for="course">Course</label>
-            <input type="text" id="course" placeholder="e.g. Ridgecrest GC" required>
+            <label for="courseSelect">Course</label>
+            <select id="courseSelect" required></select>
           </div>
           <div class="field">
             <label for="tees">Tees</label>
             <input type="text" id="tees" placeholder="e.g. White">
           </div>
         </div>
+        <div class="field-row" id="courseOtherRow">
+          <div class="field">
+            <label for="courseOther">Course Name</label>
+            <input type="text" id="courseOther" placeholder="e.g. Pebble Beach Golf Links">
+          </div>
+          <div class="field">
+            <label for="courseOtherCity">City / State</label>
+            <input type="text" id="courseOtherCity" placeholder="e.g. Pebble Beach, CA">
+          </div>
+        </div>
+        <p class="muted" id="courseHint"></p>
 
         <div class="table-scroll">
           <table class="hole-table">
@@ -86,6 +101,8 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/stats.js"></script>
+<script src="assets/js/courses.js"></script>
+<script src="assets/js/holeTable.js"></script>
 <script src="assets/js/player.js"></script>
 </body>
 </html>

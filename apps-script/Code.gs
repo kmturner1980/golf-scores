@@ -44,7 +44,12 @@ function doPost(e) {
 
       case 'addPlayer':
         requireSession_(body.session);
-        return jsonOut_(addPlayer_(body.name));
+        return jsonOut_(addPlayer_(body.name, body.sex));
+
+      case 'updatePlayer':
+        requireSession_(body.session);
+        updatePlayer_(body.token, { name: body.name, sex: body.sex });
+        return jsonOut_({ ok: true });
 
       case 'setPlayerActive':
         requireSession_(body.session);
@@ -54,6 +59,16 @@ function doPost(e) {
       case 'deleteRound':
         requireSession_(body.session);
         deleteRound_(body.roundId);
+        return jsonOut_({ ok: true });
+
+      case 'updateRound':
+        requireSession_(body.session);
+        updateRound_(body.roundId, body);
+        return jsonOut_({ ok: true });
+
+      case 'deletePlayer':
+        requireSession_(body.session);
+        deletePlayer_(body.token);
         return jsonOut_({ ok: true });
 
       default:

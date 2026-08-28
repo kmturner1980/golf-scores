@@ -10,6 +10,7 @@
     addPlayerForm: document.getElementById('addPlayerForm'),
     addPlayerMessage: document.getElementById('addPlayerMessage'),
     newPlayerName: document.getElementById('newPlayerName'),
+    newPlayerSex: document.getElementById('newPlayerSex'),
     newLinkBox: document.getElementById('newLinkBox'),
     newLinkInput: document.getElementById('newLinkInput'),
     copyLinkBtn: document.getElementById('copyLinkBtn'),
@@ -19,14 +20,54 @@
     playerDetailLink: document.getElementById('playerDetailLink'),
     copyDetailLinkBtn: document.getElementById('copyDetailLinkBtn'),
     playerDetailTiles: document.getElementById('playerDetailTiles'),
-    playerDetailRounds: document.getElementById('playerDetailRounds')
+    playerDetailRounds: document.getElementById('playerDetailRounds'),
+    deletePlayerBtn: document.getElementById('deletePlayerBtn'),
+    playerDetailSexPill: document.getElementById('playerDetailSexPill'),
+    playerDetailSexSelect: document.getElementById('playerDetailSexSelect'),
+    editSexBtn: document.getElementById('editSexBtn'),
+    saveSexBtn: document.getElementById('saveSexBtn'),
+    cancelSexBtn: document.getElementById('cancelSexBtn'),
+    coachingAdvice: document.getElementById('coachingAdvice'),
+
+    editRoundCard: document.getElementById('editRoundCard'),
+    editRoundForm: document.getElementById('editRoundForm'),
+    editRoundMessage: document.getElementById('editRoundMessage'),
+    editDate: document.getElementById('editDate'),
+    editHolesPlayed: document.getElementById('editHolesPlayed'),
+    editCourseSelect: document.getElementById('editCourseSelect'),
+    editCourseOtherRow: document.getElementById('editCourseOtherRow'),
+    editCourseOther: document.getElementById('editCourseOther'),
+    editCourseOtherCity: document.getElementById('editCourseOtherCity'),
+    editTees: document.getElementById('editTees'),
+    editNotes: document.getElementById('editNotes'),
+    editHoleRows: document.getElementById('editHoleRows'),
+    editRunningTotal: document.getElementById('editRunningTotal'),
+    editSaveBtn: document.getElementById('editSaveBtn'),
+    editCancelBtn: document.getElementById('editCancelBtn')
   };
+
+  let currentPlayerToken = null;
+  let editingRoundId = null;
+  let sortKey = 'avg';
+  let sortDir = 'asc';
 
   let session = sessionStorage.getItem('adminSession') || null;
   let data = { players: [], rounds: [], holeScores: [] };
 
   function playerLink(token) {
     return new URL('player.html?token=' + encodeURIComponent(token), window.location.href).toString();
+  }
+
+  // Populates a <select> with the Idaho course list plus an "Other" option,
+  // and preselects `selected` if it matches a listed course (falls back to
+  // "Other" otherwise, e.g. for a free-typed course name).
+  function populateCourseSelect(selectEl, selected) {
+    const sorted = [...IDAHO_COURSES].sort((a, b) => a.name.localeCompare(b.name));
+    const options = sorted.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.city)})</option>`);
+    selectEl.innerHTML = options.join('') +
+      `<option value="${OTHER_COURSE_VALUE}">Other / not listed (enter manually)</option>`;
+    const match = sorted.find((c) => c.name === selected);
+    selectEl.value = match ? selected : OTHER_COURSE_VALUE;
   }
 
   function escapeHtml(s) {
@@ -71,6 +112,38 @@
     ]);
   }
 
+  // Column definitions for the sortable roster table: label shown in the
+  // header, and how to pull a comparable value out of a computed row.
+  const ROSTER_COLUMNS = [
+    { key: 'name', label: 'Name', value: (row) => row.player.Name.toLowerCase() },
+    { key: 'sex', label: 'Sex', value: (row) => row.player.Sex || '' },
+    { key: 'rounds', label: 'Rounds', value: (row) => row.rounds.length },
+    { key: 'avg', label: 'Avg /18', value: (row) => row.agg.scoringAvgPer18 },
+    { key: 'fairway', label: 'Fairway %', value: (row) => row.agg.fairwayPct },
+    { key: 'gir', label: 'GIR %', value: (row) => row.agg.girPct },
+    { key: 'putts', label: 'Putts /18', value: (row) => row.agg.puttingAvgPer18 },
+    { key: 'birdies', label: 'Birdies+', value: (row) => row.agg.birdies + row.agg.eagles },
+    { key: 'doubles', label: 'Doubles', value: (row) => row.agg.doubles },
+    { key: 'worse', label: 'Worse', value: (row) => row.agg.worse },
+    { key: 'status', label: 'Status', value: (row) => (row.player.Active === false ? 0 : 1) }
+  ];
+
+  function sortRows(rows) {
+    const col = ROSTER_COLUMNS.find((c) => c.key === sortKey) || ROSTER_COLUMNS[0];
+    const sorted = [...rows].sort((a, b) => {
+      const va = col.value(a);
+      const vb = col.value(b);
+      const aMissing = va == null || va === '';
+      const bMissing = vb == null || vb === '';
+      if (aMissing && bMissing) return 0;
+      if (aMissing) return 1; // rows with no data always sort last
+      if (bMissing) return -1;
+      const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }
+
   function renderRoster() {
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     const roundsByPlayer = Stats.groupBy(data.rounds, 'PlayerToken');
@@ -85,16 +158,20 @@
       const holes = rounds.flatMap((r) => holesByRound[r.RoundID] || []);
       const agg = Stats.withRates(Stats.aggregateHoles(holes));
       return { player: p, rounds, agg };
-    }).sort((a, b) => (a.agg.scoringAvgPer18 || 999) - (b.agg.scoringAvgPer18 || 999));
+    });
+    const sorted = sortRows(rows);
+
+    const headerHtml = ROSTER_COLUMNS.map((c) => {
+      const arrow = sortKey === c.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+      return `<th class="clickable" data-sort-key="${c.key}">${c.label}${arrow}</th>`;
+    }).join('');
 
     els.rosterTable.innerHTML = `<table>
-      <thead><tr>
-        <th>Name</th><th>Rounds</th><th>Avg /18</th><th>Fairway %</th><th>GIR %</th>
-        <th>Putts /18</th><th>Birdies+</th><th>Doubles</th><th>Worse</th><th>Status</th>
-      </tr></thead>
-      <tbody>${rows.map(({ player, rounds, agg }) => `
+      <thead><tr>${headerHtml}</tr></thead>
+      <tbody>${sorted.map(({ player, rounds, agg }) => `
         <tr class="clickable" data-token="${escapeHtml(player.Token)}">
           <td>${escapeHtml(player.Name)}</td>
+          <td>${escapeHtml(player.Sex || '—')}</td>
           <td>${rounds.length}</td>
           <td>${Stats.fmtAvg(agg.scoringAvgPer18)}</td>
           <td>${Stats.fmtPct(agg.fairwayPct)}</td>
@@ -108,6 +185,18 @@
       `).join('')}</tbody>
     </table>`;
 
+    els.rosterTable.querySelectorAll('th[data-sort-key]').forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sortKey;
+        if (sortKey === key) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortKey = key;
+          sortDir = 'asc';
+        }
+        renderRoster();
+      });
+    });
     els.rosterTable.querySelectorAll('tr[data-token]').forEach((tr) => {
       tr.addEventListener('click', () => showPlayerDetail(tr.dataset.token));
     });
@@ -116,6 +205,7 @@
   function showPlayerDetail(token) {
     const player = data.players.find((p) => p.Token === token);
     if (!player) return;
+    currentPlayerToken = token;
     const rounds = (Stats.groupBy(data.rounds, 'PlayerToken')[token] || [])
       .sort((a, b) => new Date(b.Date) - new Date(a.Date));
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
@@ -124,6 +214,16 @@
 
     els.playerDetailName.textContent = player.Name;
     els.playerDetailLink.value = playerLink(player.Token);
+    els.playerDetailSexPill.textContent = player.Sex || 'Sex not set';
+    els.playerDetailSexPill.classList.remove('hidden');
+    els.playerDetailSexSelect.classList.add('hidden');
+    els.editSexBtn.classList.remove('hidden');
+    els.saveSexBtn.classList.add('hidden');
+    els.cancelSexBtn.classList.add('hidden');
+
+    const advice = Stats.generateAdvice(agg);
+    els.coachingAdvice.innerHTML = advice.map((a) => `<li><strong>${escapeHtml(a.area)}:</strong> ${escapeHtml(a.tip)}</li>`).join('');
+
     statTiles(els.playerDetailTiles, [
       ['Rounds', rounds.length],
       ['Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
@@ -143,7 +243,7 @@
       els.playerDetailRounds.innerHTML = '<p class="muted">No rounds entered yet.</p>';
     } else {
       els.playerDetailRounds.innerHTML = `<table>
-        <thead><tr><th>Date</th><th>Course</th><th>Tees</th><th>Holes</th><th>Score</th><th>Putts</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Course</th><th>Tees</th><th>Holes</th><th>Score</th><th>Putts</th><th colspan="2"></th></tr></thead>
         <tbody>${rounds.map((r) => {
           const holes = holesByRound[r.RoundID] || [];
           const total = Stats.roundTotal(holes);
@@ -155,6 +255,7 @@
             <td>${r.HolesPlayed}</td>
             <td>${total}</td>
             <td>${putts}</td>
+            <td><button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button></td>
             <td><button type="button" class="danger delete-round" data-round="${escapeHtml(r.RoundID)}">Delete</button></td>
           </tr>`;
         }).join('')}</tbody>
@@ -162,9 +263,13 @@
       els.playerDetailRounds.querySelectorAll('.delete-round').forEach((btn) => {
         btn.addEventListener('click', () => deleteRound(btn.dataset.round));
       });
+      els.playerDetailRounds.querySelectorAll('.edit-round').forEach((btn) => {
+        btn.addEventListener('click', () => openEditRound(btn.dataset.round));
+      });
     }
 
     els.playerDetail.classList.remove('hidden');
+    els.editRoundCard.classList.add('hidden');
     els.playerDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -172,6 +277,78 @@
     if (!confirm('Delete this round? This cannot be undone.')) return;
     try {
       await Api.post({ action: 'deleteRound', session, roundId });
+      await refresh();
+      if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function holeRangeFor(mode) {
+    if (mode === '9F') return range(1, 9);
+    if (mode === '9B') return range(10, 18);
+    return range(1, 18);
+  }
+  function range(a, b) {
+    const out = [];
+    for (let i = a; i <= b; i++) out.push(i);
+    return out;
+  }
+
+  function openEditRound(roundId) {
+    const round = data.rounds.find((r) => r.RoundID === roundId);
+    if (!round) return;
+    editingRoundId = roundId;
+
+    els.editRoundMessage.innerHTML = '';
+    els.editDate.value = round.Date;
+    els.editHolesPlayed.value = round.HolesPlayed;
+    els.editTees.value = round.Tees || '';
+    els.editNotes.value = round.Notes || '';
+
+    populateCourseSelect(els.editCourseSelect, round.Course);
+    const isOther = els.editCourseSelect.value === OTHER_COURSE_VALUE;
+    els.editCourseOtherRow.classList.toggle('hidden', !isOther);
+    els.editCourseOther.value = isOther ? round.Course : '';
+    els.editCourseOtherCity.value = '';
+
+    const existing = {};
+    (Stats.groupBy(data.holeScores, 'RoundID')[roundId] || []).forEach((h) => {
+      existing[Number(h.Hole)] = {
+        par: h.Par,
+        score: h.Score,
+        fairway: h.FairwayHit,
+        gir: h.GIR,
+        putts: h.Putts,
+        penalty: h.Penalties
+      };
+    });
+    // Admin edits are never par-locked -- courseData is always null here so a
+    // coach can fix a wrong par even on a "known" course.
+    HoleTable.render(els.editHoleRows, holeRangeFor(round.HolesPlayed), null, existing);
+    HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+
+    els.editRoundCard.classList.remove('hidden');
+    els.editRoundCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function editedCourseName() {
+    if (els.editCourseSelect.value === OTHER_COURSE_VALUE) {
+      const name = els.editCourseOther.value.trim();
+      const city = els.editCourseOtherCity.value.trim();
+      return city ? `${name} (${city})` : name;
+    }
+    return els.editCourseSelect.value;
+  }
+
+  async function deletePlayer() {
+    if (!currentPlayerToken) return;
+    const player = data.players.find((p) => p.Token === currentPlayerToken);
+    const name = player ? player.Name : 'this player';
+    if (!confirm(`Delete ${name}? This permanently deletes every round and score they've entered. This cannot be undone.`)) return;
+    try {
+      await Api.post({ action: 'deletePlayer', session, token: currentPlayerToken });
+      currentPlayerToken = null;
       await refresh();
     } catch (err) {
       alert(err.message);
@@ -183,6 +360,7 @@
     renderTeamTiles();
     renderRoster();
     els.playerDetail.classList.add('hidden');
+    els.editRoundCard.classList.add('hidden');
   }
 
   async function showDashboard() {
@@ -212,7 +390,7 @@
     els.addPlayerMessage.innerHTML = '';
     els.newLinkBox.classList.add('hidden');
     try {
-      const result = await Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value });
+      const result = await Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value, sex: els.newPlayerSex.value });
       els.addPlayerMessage.innerHTML = `<div class="success">Added ${escapeHtml(els.newPlayerName.value)}.</div>`;
       els.newLinkInput.value = playerLink(result.Token);
       els.newLinkBox.classList.remove('hidden');
@@ -220,6 +398,87 @@
       await refresh();
     } catch (err) {
       els.addPlayerMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  els.deletePlayerBtn.addEventListener('click', deletePlayer);
+
+  els.editSexBtn.addEventListener('click', () => {
+    const player = data.players.find((p) => p.Token === currentPlayerToken);
+    els.playerDetailSexSelect.innerHTML = ['Boy', 'Girl'].map((s) =>
+      `<option value="${s}" ${player && player.Sex === s ? 'selected' : ''}>${s}</option>`
+    ).join('');
+    els.playerDetailSexPill.classList.add('hidden');
+    els.editSexBtn.classList.add('hidden');
+    els.playerDetailSexSelect.classList.remove('hidden');
+    els.saveSexBtn.classList.remove('hidden');
+    els.cancelSexBtn.classList.remove('hidden');
+  });
+
+  els.cancelSexBtn.addEventListener('click', () => {
+    if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
+  });
+
+  els.saveSexBtn.addEventListener('click', async () => {
+    try {
+      await Api.post({ action: 'updatePlayer', session, token: currentPlayerToken, sex: els.playerDetailSexSelect.value });
+      await refresh();
+      if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  els.editCourseSelect.addEventListener('change', () => {
+    els.editCourseOtherRow.classList.toggle('hidden', els.editCourseSelect.value !== OTHER_COURSE_VALUE);
+  });
+
+  els.editHolesPlayed.addEventListener('change', () => {
+    HoleTable.render(els.editHoleRows, holeRangeFor(els.editHolesPlayed.value), null, {});
+    HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+  });
+
+  els.editHoleRows.addEventListener('input', (e) => {
+    if (e.target.classList.contains('score')) HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+  });
+
+  els.editCancelBtn.addEventListener('click', () => {
+    editingRoundId = null;
+    els.editRoundCard.classList.add('hidden');
+  });
+
+  els.editRoundForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.editRoundMessage.innerHTML = '';
+    els.editSaveBtn.disabled = true;
+    els.editSaveBtn.textContent = 'Saving…';
+    try {
+      const course = editedCourseName();
+      if (!course) throw new Error('Course is required.');
+      const holes = HoleTable.collect(els.editHoleRows);
+      for (const h of holes) {
+        if (!h.par || !h.score) throw new Error(`Hole ${h.hole} needs a par and a score.`);
+      }
+      await Api.post({
+        action: 'updateRound',
+        session,
+        roundId: editingRoundId,
+        date: els.editDate.value,
+        course,
+        tees: els.editTees.value,
+        holesPlayed: els.editHolesPlayed.value,
+        notes: els.editNotes.value,
+        holes
+      });
+      editingRoundId = null;
+      els.editRoundCard.classList.add('hidden');
+      await refresh();
+      if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
+    } catch (err) {
+      els.editRoundMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      els.editSaveBtn.disabled = false;
+      els.editSaveBtn.textContent = 'Save Changes';
     }
   });
 
