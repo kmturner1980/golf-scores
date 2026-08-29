@@ -15,7 +15,7 @@ function initializeSheets() {
 
   var rounds = ss.getSheetByName(SHEET_ROUNDS) || ss.insertSheet(SHEET_ROUNDS);
   if (rounds.getLastRow() === 0) {
-    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'HolesPlayed', 'Notes', 'SubmittedAt']);
+    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'HolesPlayed', 'IsTournament', 'Notes', 'SubmittedAt']);
   }
 
   var holeScores = ss.getSheetByName(SHEET_HOLE_SCORES) || ss.insertSheet(SHEET_HOLE_SCORES);
@@ -49,6 +49,24 @@ function migrateAddSexColumn() {
   sheet.insertColumnAfter(nameCol);
   sheet.getRange(1, nameCol + 1).setValue('Sex');
   Logger.log('Added Sex column to Players sheet.');
+}
+
+/**
+ * Run this once if your Rounds sheet was created before tournament-round
+ * tracking existed. Safe to run multiple times. Existing rounds count as
+ * non-tournament until you edit them to mark otherwise.
+ */
+function migrateAddTournamentColumn() {
+  var sheet = getSheet_(SHEET_ROUNDS);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('IsTournament') !== -1) {
+    Logger.log('IsTournament column already exists -- nothing to do.');
+    return;
+  }
+  var holesCol = headers.indexOf('HolesPlayed') + 1;
+  sheet.insertColumnAfter(holesCol);
+  sheet.getRange(1, holesCol + 1).setValue('IsTournament');
+  Logger.log('Added IsTournament column to Rounds sheet.');
 }
 
 /**

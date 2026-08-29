@@ -39,6 +39,7 @@
     editCourseOther: document.getElementById('editCourseOther'),
     editCourseOtherCity: document.getElementById('editCourseOtherCity'),
     editTees: document.getElementById('editTees'),
+    editIsTournament: document.getElementById('editIsTournament'),
     editNotes: document.getElementById('editNotes'),
     editHoleRows: document.getElementById('editHoleRows'),
     editRunningTotal: document.getElementById('editRunningTotal'),
@@ -101,7 +102,8 @@
   }
 
   function renderTeamTiles() {
-    const agg = Stats.withRates(Stats.aggregateHoles(data.holeScores));
+    let agg = Stats.withRates(Stats.aggregateHoles(data.holeScores));
+    agg = Stats.applyTournamentWeighting(agg, data.rounds, Stats.groupBy(data.holeScores, 'RoundID'));
     statTiles(els.teamTiles, [
       ['Players', data.players.length],
       ['Rounds Logged', data.rounds.length],
@@ -114,9 +116,10 @@
 
   // Column definitions for the sortable roster table: label shown in the
   // header, and how to pull a comparable value out of a computed row.
+  // No Sex column here -- the roster is already split into Boys/Girls
+  // tables, so it'd be redundant.
   const ROSTER_COLUMNS = [
     { key: 'name', label: 'Name', value: (row) => row.player.Name.toLowerCase() },
-    { key: 'sex', label: 'Sex', value: (row) => row.player.Sex || '' },
     { key: 'rounds', label: 'Rounds', value: (row) => row.rounds.length },
     { key: 'avg', label: 'Avg /18', value: (row) => row.agg.scoringAvgPer18 },
     { key: 'fairway', label: 'Fairway %', value: (row) => row.agg.fairwayPct },
@@ -144,34 +147,17 @@
     return sorted;
   }
 
-  function renderRoster() {
-    const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
-    const roundsByPlayer = Stats.groupBy(data.rounds, 'PlayerToken');
-
-    if (!data.players.length) {
-      els.rosterTable.innerHTML = '<p class="muted">No players yet — add one above.</p>';
-      return;
-    }
-
-    const rows = data.players.map((p) => {
-      const rounds = roundsByPlayer[p.Token] || [];
-      const holes = rounds.flatMap((r) => holesByRound[r.RoundID] || []);
-      const agg = Stats.withRates(Stats.aggregateHoles(holes));
-      return { player: p, rounds, agg };
-    });
+  function rosterTableHtml(rows) {
     const sorted = sortRows(rows);
-
     const headerHtml = ROSTER_COLUMNS.map((c) => {
       const arrow = sortKey === c.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
       return `<th class="clickable" data-sort-key="${c.key}">${c.label}${arrow}</th>`;
     }).join('');
-
-    els.rosterTable.innerHTML = `<table>
+    return `<table>
       <thead><tr>${headerHtml}</tr></thead>
       <tbody>${sorted.map(({ player, rounds, agg }) => `
         <tr class="clickable" data-token="${escapeHtml(player.Token)}">
           <td>${escapeHtml(player.Name)}</td>
-          <td>${escapeHtml(player.Sex || '—')}</td>
           <td>${rounds.length}</td>
           <td>${Stats.fmtAvg(agg.scoringAvgPer18)}</td>
           <td>${Stats.fmtPct(agg.fairwayPct)}</td>
@@ -184,6 +170,35 @@
         </tr>
       `).join('')}</tbody>
     </table>`;
+  }
+
+  function renderRoster() {
+    const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
+    const roundsByPlayer = Stats.groupBy(data.rounds, 'PlayerToken');
+
+    if (!data.players.length) {
+      els.rosterTable.innerHTML = '<p class="muted">No players yet — add one above.</p>';
+      return;
+    }
+
+    const rows = data.players.map((p) => {
+      const rounds = roundsByPlayer[p.Token] || [];
+      const holes = rounds.flatMap((r) => holesByRound[r.RoundID] || []);
+      let agg = Stats.withRates(Stats.aggregateHoles(holes));
+      agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+      return { player: p, rounds, agg };
+    });
+
+    const groups = [
+      { title: 'Boys', rows: rows.filter((r) => r.player.Sex === 'Boy') },
+      { title: 'Girls', rows: rows.filter((r) => r.player.Sex === 'Girl') },
+      { title: 'Sex Not Set', rows: rows.filter((r) => r.player.Sex !== 'Boy' && r.player.Sex !== 'Girl') }
+    ].filter((g) => g.rows.length);
+
+    els.rosterTable.innerHTML = groups.map((g) => `
+      <h3>${escapeHtml(g.title)} (${g.rows.length})</h3>
+      <div class="table-scroll" style="margin-bottom:1rem">${rosterTableHtml(g.rows)}</div>
+    `).join('');
 
     els.rosterTable.querySelectorAll('th[data-sort-key]').forEach((th) => {
       th.addEventListener('click', () => {
@@ -210,7 +225,8 @@
       .sort((a, b) => new Date(b.Date) - new Date(a.Date));
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     const allHoles = rounds.flatMap((r) => holesByRound[r.RoundID] || []);
-    const agg = Stats.withRates(Stats.aggregateHoles(allHoles));
+    let agg = Stats.withRates(Stats.aggregateHoles(allHoles));
+    agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
 
     els.playerDetailName.textContent = player.Name;
     els.playerDetailLink.value = playerLink(player.Token);
@@ -249,7 +265,7 @@
           const total = Stats.roundTotal(holes);
           const putts = holes.reduce((s, h) => s + (Number(h.Putts) || 0), 0);
           return `<tr>
-            <td>${formatDate(r.Date)}</td>
+            <td>${formatDate(r.Date)}${Stats.isTournamentRound(r) ? ' <span class="pill">Tournament</span>' : ''}</td>
             <td>${escapeHtml(r.Course)}</td>
             <td>${escapeHtml(r.Tees)}</td>
             <td>${r.HolesPlayed}</td>
@@ -304,6 +320,7 @@
     els.editDate.value = round.Date;
     els.editHolesPlayed.value = round.HolesPlayed;
     els.editTees.value = round.Tees || '';
+    els.editIsTournament.checked = Stats.isTournamentRound(round);
     els.editNotes.value = round.Notes || '';
 
     populateCourseSelect(els.editCourseSelect, round.Course);
@@ -467,6 +484,7 @@
         course,
         tees: els.editTees.value,
         holesPlayed: els.editHolesPlayed.value,
+        isTournament: els.editIsTournament.checked,
         notes: els.editNotes.value,
         holes
       });

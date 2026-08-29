@@ -16,11 +16,22 @@ frontend. No servers to pay for or maintain.
 - `index.html`, `player.html`, `admin.html`, `assets/` — the static frontend.
   Host these anywhere that serves static files (GitHub Pages is free and
   easiest).
-- Each player has a random secret **token** baked into their link
-  (`player.html?token=...`). Anyone with the link can enter scores as that
-  player — there's no password for players, so treat the link like a shared
-  secret and don't post it publicly.
+- Each player has a short, random secret **code** (6 characters, e.g.
+  `RK7MPQ`) baked into their link (`player.html?token=RK7MPQ`). Anyone with
+  the link can enter scores as that player — there's no password for
+  players, so treat the link like a shared secret and don't post it
+  publicly.
 - The coach dashboard is behind a single shared **admin password**.
+
+## Troubleshooting: "Unknown or missing action"
+
+If the admin dashboard shows this error (editing a player, editing a round,
+deleting a player, etc.), your live Apps Script deployment is running an
+older copy of the code that doesn't recognize that action yet. This repo
+gets updated over time — every time it does, **you must copy the changed
+`.gs` files into your Apps Script project and push a new deployment
+version** (see step 3 below); the frontend and backend are only in sync
+when you've done that. This is almost always the fix for this exact error.
 
 ## One-time setup
 
@@ -65,17 +76,18 @@ frontend. No servers to pay for or maintain.
 
 Whenever you change the `.gs` files later, use **Deploy → Manage
 deployments → edit (pencil) → New version** to push the update live — the
-URL stays the same. If you already deployed once and are picking up a
-newer version of this repo, copy the updated contents of `Players.gs`,
-`Rounds.gs`, `Setup.gs`, and `Code.gs` into the Apps Script editor and
-create a new deployment version — those files gained
-`deletePlayer_`/`updateRound_`/`updatePlayer_` support for the admin
-dashboard's edit/delete features, and a `Sex` column on Players.
+URL stays the same. **This is a manual step you have to repeat every time
+you pull a newer version of this repo** — pasting updated `.gs` file
+contents into the Apps Script editor does nothing for players/coaches until
+you also create a new deployment version. If you're not sure whether
+you're on the latest code, just redo it: copy every file under
+`apps-script/` into the Apps Script editor and create a new version.
 
-If your Players sheet already existed before the `Sex` column was added,
-run `migrateAddSexColumn` once from the Apps Script editor's function
-dropdown (same way you ran `initializeSheets`) — it inserts the column
-without disturbing existing player rows.
+Two one-time migrations, run from the Apps Script editor's function
+dropdown (same way you ran `initializeSheets`) if your sheet predates them
+— both are safe to run more than once:
+- `migrateAddSexColumn` — adds the `Sex` column to Players.
+- `migrateAddTournamentColumn` — adds the `IsTournament` column to Rounds.
 
 ### 4. Point the frontend at your API
 
@@ -140,12 +152,24 @@ pars, bogeys, double bogeys, and worse-than-double.
 Each player also has a Sex (Boy or Girl), set when they're added and
 editable afterward from their detail view in the admin dashboard.
 
-## Roster sorting
+## Roster sorting and grouping
 
-Click any column header on the admin Roster table to sort by it (name,
-sex, rounds, scoring average, fairway %, GIR %, putts, birdies+, doubles,
-worse, status) — click again to reverse the direction. Players with no data
-for that column (e.g. no rounds logged yet) always sort to the bottom.
+The admin Roster is split into separate tables — Boys, Girls, and (if any
+player doesn't have a Sex set yet) Sex Not Set — each independently
+populated but sharing one sort setting. Click any column header (name,
+rounds, scoring average, fairway %, GIR %, putts, birdies+, doubles, worse,
+status) to sort by it, click again to reverse direction. Players with no
+data for that column (e.g. no rounds logged yet) always sort to the bottom.
+
+## Tournament rounds count double toward scoring average
+
+The round entry form (and the admin round editor) has a "This was a
+tournament round" checkbox. When checked, that round's strokes count twice
+when computing scoring average — everywhere scoring average shows up
+(player stats, roster, team totals, sorting) — while every other stat
+(fairway %, GIR %, putting average, birdie/bogey counts, penalties) is
+unaffected and uses the round normally. Tournament rounds are called out
+with a "Tournament" badge next to the date wherever rounds are listed.
 
 ## Coaching Focus (automated advice)
 

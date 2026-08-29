@@ -20,13 +20,31 @@ function validateSex_(sex) {
   return sex;
 }
 
+// Short, easy-to-type/read player codes -- no 0/O/1/I/L, which get confused
+// with each other in handwriting or over voice.
+var TOKEN_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+var TOKEN_LENGTH = 6;
+
+function generateShortToken_() {
+  var existing = {};
+  sheetToObjects_(SHEET_PLAYERS).forEach(function (p) { existing[p.Token] = true; });
+  for (var attempt = 0; attempt < 20; attempt++) {
+    var token = '';
+    for (var i = 0; i < TOKEN_LENGTH; i++) {
+      token += TOKEN_ALPHABET.charAt(Math.floor(Math.random() * TOKEN_ALPHABET.length));
+    }
+    if (!existing[token]) return token;
+  }
+  throw new Error('Could not generate a unique player code -- please try again.');
+}
+
 /** Admin-only: adds a new player and returns their new row (including secret token). */
 function addPlayer_(name, sex) {
   name = (name || '').toString().trim();
   if (!name) throw new Error('Player name is required.');
   sex = validateSex_(sex);
 
-  var token = Utilities.getUuid();
+  var token = generateShortToken_();
   var record = {
     Token: token,
     Name: name,
@@ -51,7 +69,9 @@ function updatePlayer_(token, updates) {
     sheet.getRange(rowIdx, headers.indexOf('Name') + 1).setValue(name);
   }
   if (updates.sex != null) {
-    sheet.getRange(rowIdx, headers.indexOf('Sex') + 1).setValue(validateSex_(updates.sex));
+    var sexCol = headers.indexOf('Sex');
+    if (sexCol === -1) throw new Error('Players sheet has no "Sex" column yet -- run migrateAddSexColumn() from the Apps Script editor first.');
+    sheet.getRange(rowIdx, sexCol + 1).setValue(validateSex_(updates.sex));
   }
 }
 

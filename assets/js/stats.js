@@ -80,6 +80,33 @@ const Stats = {
     return holeRows.reduce((sum, h) => sum + (Number(h.Score) || 0), 0);
   },
 
+  // Sheets can round-trip a checkbox as a real boolean or as the strings
+  // "TRUE"/"true" depending on how the cell was written -- handle both.
+  isTournamentRound(round) {
+    return round.IsTournament === true || round.IsTournament === 'TRUE' || round.IsTournament === 'true';
+  },
+
+  /**
+   * Recomputes scoring average so tournament rounds count double, leaving
+   * every other stat on `agg` (fairway%, GIR%, putting, birdie/bogey counts,
+   * etc.) untouched -- only "average scoring" is meant to be weighted.
+   * `holesByRound` is Stats.groupBy(holeScores, 'RoundID').
+   */
+  applyTournamentWeighting(agg, rounds, holesByRound) {
+    let weightedStrokes = 0;
+    let weightedHoles = 0;
+    rounds.forEach((r) => {
+      const holes = (holesByRound[r.RoundID] || []).filter((h) => Number(h.Par) && Number(h.Score));
+      const weight = Stats.isTournamentRound(r) ? 2 : 1;
+      weightedStrokes += Stats.roundTotal(holes) * weight;
+      weightedHoles += holes.length * weight;
+    });
+    return Object.assign({}, agg, {
+      scoringAvgPerHole: weightedHoles ? weightedStrokes / weightedHoles : null,
+      scoringAvgPer18: weightedHoles ? (weightedStrokes / weightedHoles) * 18 : null
+    });
+  },
+
   fmtPct(v) {
     return v == null ? '—' : Math.round(v * 100) + '%';
   },

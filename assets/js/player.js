@@ -18,7 +18,8 @@
     courseOtherRow: document.getElementById('courseOtherRow'),
     courseOther: document.getElementById('courseOther'),
     courseOtherCity: document.getElementById('courseOtherCity'),
-    courseHint: document.getElementById('courseHint')
+    courseHint: document.getElementById('courseHint'),
+    isTournament: document.getElementById('isTournament')
   };
 
   let playerData = null;
@@ -75,7 +76,8 @@
   }
 
   function renderStatTiles(rounds, holeScores) {
-    const agg = Stats.withRates(Stats.aggregateHoles(holeScores));
+    let agg = Stats.withRates(Stats.aggregateHoles(holeScores));
+    agg = Stats.applyTournamentWeighting(agg, rounds, Stats.groupBy(holeScores, 'RoundID'));
     const tiles = [
       ['Rounds', rounds.length],
       ['Scoring Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
@@ -105,7 +107,7 @@
       const diff = parTotal ? total - parTotal : null;
       const diffStr = diff == null ? '' : (diff > 0 ? `+${diff}` : diff === 0 ? 'E' : diff);
       return `<tr>
-        <td>${formatDate(r.Date)}</td>
+        <td>${formatDate(r.Date)}${Stats.isTournamentRound(r) ? ' <span class="pill">Tournament</span>' : ''}</td>
         <td>${escapeHtml(r.Course)}</td>
         <td>${r.HolesPlayed}</td>
         <td>${total} <span class="muted">${diffStr}</span></td>
@@ -181,6 +183,7 @@
         course,
         tees: document.getElementById('tees').value,
         holesPlayed: els.holesPlayed.value,
+        isTournament: els.isTournament.checked,
         notes: document.getElementById('notes').value,
         holes
       });

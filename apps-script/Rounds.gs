@@ -22,6 +22,7 @@ function submitRound_(token, payload) {
     Course: (payload.course || '').toString().trim(),
     Tees: (payload.tees || '').toString().trim(),
     HolesPlayed: payload.holesPlayed || payload.holes.length,
+    IsTournament: !!payload.isTournament,
     Notes: (payload.notes || '').toString().trim(),
     SubmittedAt: new Date()
   });
@@ -74,6 +75,7 @@ function updateRound_(roundId, payload) {
     Course: (payload.course || '').toString().trim(),
     Tees: (payload.tees || '').toString().trim(),
     HolesPlayed: payload.holesPlayed || payload.holes.length,
+    IsTournament: !!payload.isTournament,
     Notes: (payload.notes || '').toString().trim()
   };
   Object.keys(updates).forEach(function (key) {

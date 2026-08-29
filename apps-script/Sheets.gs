@@ -39,10 +39,20 @@ function sheetToObjects_(name) {
   return rows;
 }
 
-/** Appends one object as a row, mapping fields to columns by the header row. */
+/**
+ * Appends one object as a row, mapping fields to columns by the header row.
+ * Throws if `obj` has a key with no matching column, instead of silently
+ * dropping that value -- a missing column (e.g. before running a migration
+ * from Setup.gs) should be a loud error, not a mysteriously blank cell.
+ */
 function appendObject_(name, obj) {
   var sheet = getSheet_(name);
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var missing = Object.keys(obj).filter(function (k) { return headers.indexOf(k) === -1; });
+  if (missing.length) {
+    throw new Error('Sheet "' + name + '" is missing column(s): ' + missing.join(', ') +
+      '. Run the matching migration function from Setup.gs, then try again.');
+  }
   var row = headers.map(function (h) {
     return Object.prototype.hasOwnProperty.call(obj, h) ? obj[h] : '';
   });
