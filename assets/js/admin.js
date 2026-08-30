@@ -28,8 +28,10 @@
     saveSexBtn: document.getElementById('saveSexBtn'),
     cancelSexBtn: document.getElementById('cancelSexBtn'),
     coachingAdvice: document.getElementById('coachingAdvice'),
+    addRoundBtn: document.getElementById('addRoundBtn'),
 
     editRoundCard: document.getElementById('editRoundCard'),
+    editRoundHeading: document.getElementById('editRoundHeading'),
     editRoundForm: document.getElementById('editRoundForm'),
     editRoundMessage: document.getElementById('editRoundMessage'),
     editDate: document.getElementById('editDate'),
@@ -67,8 +69,12 @@
     const options = sorted.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.city)})</option>`);
     selectEl.innerHTML = options.join('') +
       `<option value="${OTHER_COURSE_VALUE}">Other / not listed (enter manually)</option>`;
-    const match = sorted.find((c) => c.name === selected);
-    selectEl.value = match ? selected : OTHER_COURSE_VALUE;
+    // Omit `selected` (e.g. adding a brand-new round) to leave the browser's
+    // natural first-option default in place, same as the player entry form.
+    if (selected !== undefined) {
+      const match = sorted.find((c) => c.name === selected);
+      selectEl.value = match ? selected : OTHER_COURSE_VALUE;
+    }
   }
 
   function escapeHtml(s) {
@@ -315,6 +321,8 @@
     const round = data.rounds.find((r) => r.RoundID === roundId);
     if (!round) return;
     editingRoundId = roundId;
+    els.editRoundHeading.textContent = 'Edit Round';
+    els.editSaveBtn.textContent = 'Save Changes';
 
     els.editRoundMessage.innerHTML = '';
     els.editDate.value = round.Date;
@@ -343,6 +351,31 @@
     // Admin edits are never par-locked -- courseData is always null here so a
     // coach can fix a wrong par even on a "known" course.
     HoleTable.render(els.editHoleRows, holeRangeFor(round.HolesPlayed), null, existing);
+    HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+
+    els.editRoundCard.classList.remove('hidden');
+    els.editRoundCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function openAddRound() {
+    if (!currentPlayerToken) return;
+    editingRoundId = null;
+    els.editRoundHeading.textContent = 'Add Round';
+    els.editSaveBtn.textContent = 'Add Round';
+
+    els.editRoundMessage.innerHTML = '';
+    els.editDate.value = new Date().toISOString().slice(0, 10);
+    els.editHolesPlayed.value = '18';
+    els.editTees.value = '';
+    els.editIsTournament.checked = false;
+    els.editNotes.value = '';
+
+    populateCourseSelect(els.editCourseSelect);
+    els.editCourseOtherRow.classList.toggle('hidden', els.editCourseSelect.value !== OTHER_COURSE_VALUE);
+    els.editCourseOther.value = '';
+    els.editCourseOtherCity.value = '';
+
+    HoleTable.render(els.editHoleRows, holeRangeFor('18'), null, {});
     HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
 
     els.editRoundCard.classList.remove('hidden');
@@ -464,11 +497,14 @@
     els.editRoundCard.classList.add('hidden');
   });
 
+  els.addRoundBtn.addEventListener('click', openAddRound);
+
   els.editRoundForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.editRoundMessage.innerHTML = '';
+    const isAdding = editingRoundId == null;
     els.editSaveBtn.disabled = true;
-    els.editSaveBtn.textContent = 'Saving…';
+    els.editSaveBtn.textContent = isAdding ? 'Adding…' : 'Saving…';
     try {
       const course = editedCourseName();
       if (!course) throw new Error('Course is required.');
@@ -476,10 +512,7 @@
       for (const h of holes) {
         if (!h.par || !h.score) throw new Error(`Hole ${h.hole} needs a par and a score.`);
       }
-      await Api.post({
-        action: 'updateRound',
-        session,
-        roundId: editingRoundId,
+      const payload = {
         date: els.editDate.value,
         course,
         tees: els.editTees.value,
@@ -487,7 +520,12 @@
         isTournament: els.editIsTournament.checked,
         notes: els.editNotes.value,
         holes
-      });
+      };
+      if (isAdding) {
+        await Api.post(Object.assign({ action: 'submitRound', token: currentPlayerToken }, payload));
+      } else {
+        await Api.post(Object.assign({ action: 'updateRound', session, roundId: editingRoundId }, payload));
+      }
       editingRoundId = null;
       els.editRoundCard.classList.add('hidden');
       await refresh();
@@ -496,7 +534,7 @@
       els.editRoundMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
     } finally {
       els.editSaveBtn.disabled = false;
-      els.editSaveBtn.textContent = 'Save Changes';
+      els.editSaveBtn.textContent = isAdding ? 'Add Round' : 'Save Changes';
     }
   });
 

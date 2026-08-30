@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Coach Admin — Golf Scores</title>
 <link rel="icon" href="assets/img/ambrose-golf-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
@@ -87,11 +90,17 @@
       <h3>Coaching Focus</h3>
       <ul id="coachingAdvice" style="margin:0 0 1rem; padding-left:1.2rem"></ul>
 
+      <div class="field-row" style="align-items:center">
+        <h3 style="margin-bottom:0">Rounds</h3>
+        <div style="text-align:right">
+          <button type="button" id="addRoundBtn">Add Round</button>
+        </div>
+      </div>
       <div id="playerDetailRounds" class="table-scroll"></div>
     </div>
 
     <div id="editRoundCard" class="card hidden">
-      <h2>Edit Round</h2>
+      <h2 id="editRoundHeading">Edit Round</h2>
       <div id="editRoundMessage"></div>
       <form id="editRoundForm">
         <div class="field-row">

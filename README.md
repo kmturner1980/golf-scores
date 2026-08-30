@@ -115,10 +115,16 @@ dropdown (same way you ran `initializeSheets`) if your sheet predates them
 
 ## Branding
 
-The site uses the Ambrose Athletics color scheme (navy `#0f254e`, columbia
+The site uses the Ambrose Athletics color scheme (navy `#1b325e`, columbia
 blue `#6d87a8`, gold `#e0aa0f`, blue-gray `#d7e1e7`, warm gray `#eaeaea`),
 defined as CSS variables at the top of `assets/css/styles.css` — change
 those to re-theme the whole site.
+
+Buttons, inputs, and type also follow [theambroseschool.org](https://www.theambroseschool.org)'s
+own style: "Open Sans" for body/UI text (loaded from Google Fonts) with a
+plain serif ("Times New Roman", matching their own declared heading font)
+for headings, sharp 3-4px corners rather than heavily rounded ones, and
+uppercase, letter-spaced text on buttons and field labels.
 
 The header on every page references a logo file at
 `assets/img/ambrose-golf-logo.png` (also used as the favicon). If that file
@@ -185,10 +191,12 @@ offering advice, and says so explicitly if a player is below that.
 ## Admin capabilities
 
 From the coach dashboard you can, per player: view their season stats, copy
-their link, and delete them entirely (this also permanently deletes every
-round and hole score they've ever submitted — there's no undo). Per round,
-you can Edit (opens the same hole-by-hole editor as the entry form, prefilled
-with that round's data, with Par always editable) or Delete.
+their link, delete them entirely (this also permanently deletes every round
+and hole score they've ever submitted — there's no undo), and Add Round —
+enter a brand-new round on that player's behalf using the same hole-by-hole
+editor as the player's own entry form. Per existing round, you can Edit
+(same editor, prefilled with that round's data, with Par always editable)
+or Delete.
 
 ## Local development
 
