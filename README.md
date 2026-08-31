@@ -83,13 +83,16 @@ you also create a new deployment version. If you're not sure whether
 you're on the latest code, just redo it: copy every file under
 `apps-script/` into the Apps Script editor and create a new version.
 
-Three one-time migrations, run from the Apps Script editor's function
+Four one-time migrations, run from the Apps Script editor's function
 dropdown (same way you ran `initializeSheets`) if your sheet predates them
 — all are safe to run more than once:
 - `migrateAddSexColumn` — adds the `Sex` column to Players.
 - `migrateAddTournamentColumn` — adds the `IsTournament` column to Rounds.
 - `migrateAddSummaryColumns` — adds the columns "just the totals" round
-  entry needs to Rounds.
+  entry needs to Rounds (this one gained more columns after it first
+  shipped — safe to re-run, it only adds what's still missing).
+- `migrateAddRatingColumns` — adds the `CourseRating`/`SlopeRating` columns
+  to Rounds (used for score differential; applies to both entry modes).
 
 ### 4. Point the frontend at your API
 
@@ -136,23 +139,45 @@ is ever missing, the header just shows text — no broken-image icon.
 
 The "Course" dropdown on the entry form is populated from
 `assets/js/courses.js`. Each entry is `{ name, city }`, optionally with a
-`pars` array of 18 numbers (one par per hole) sourced from a real
-scorecard. When a course has a `pars` array, selecting it on the entry form
-fills in every hole's par automatically and locks the Par field so it can't
-be fat-fingered; courses without verified `pars` (and the "Other / not
-listed" option) leave Par editable, defaulting to 4. Edit this file to add,
-remove, correct, or reorder courses — and to add `pars` for any course you
-want locked once you've confirmed its scorecard.
+`pars` array of 18 numbers (one par per hole) and a `tees` array (one
+`{ name, rating, slope }` per tee box), both sourced from a real scorecard
+— see each entry's `source`/`teeSource`. When a course has `pars`, selecting
+it on the entry form fills in every hole's par automatically and locks the
+Par field so it can't be fat-fingered; courses without verified `pars` (and
+the "Other / not listed" option) leave Par editable, defaulting to 4. Edit
+this file to add, remove, correct, or reorder courses — and to add `pars`/
+`tees` for any course you've confirmed the data for.
 
 The admin dashboard's round editor never locks Par, but picking a course
 there still fills in that course's real pars for you (leaving them
 editable) — it just updates the Par column in place, so anything already
 typed in Score/Putts/etc. is left alone.
 
+Similarly, the Tees dropdown lists a course's verified tee boxes (showing
+each one's rating/slope); picking one fills in Course Rating and Slope
+Rating for that round automatically. Picking "Other / not listed" (or a
+course with no verified tees) reveals manual Tee Name / Course Rating /
+Slope Rating fields instead — rating and slope are optional everywhere, but
+a round without them can't get a score differential (see below).
+
 Par 3s never have a fairway to hit: the Fairway Hit/Miss control is hidden
 entirely (not just grayed out) for any hole marked par 3, on both the entry
 form and the admin editor, and those holes are excluded from the Fairway %
 calculation.
+
+## Score differential
+
+When a round has a Course Rating and Slope Rating (from picking a verified
+tee, or typed in manually), the app computes the standard USGA-style score
+differential: `(113 / Slope Rating) × (score − Course Rating)`. This
+normalizes a round for how hard the tee actually played, so it's more
+comparable across different courses than raw score — a 90 at a tough course
+can be a better round than an 85 at an easy one. It's shown as its own
+field ("Differential" / "Avg Differential") everywhere scoring average
+shows up, never in place of it. Rounds without a rating/slope on file just
+show "—" for differential and are excluded from the average (not treated
+as 0). Tournament rounds count double toward average differential, the
+same as they do for average score.
 
 ## Data tracked per round
 
@@ -171,11 +196,19 @@ total score and par (required) plus optional fairways hit/attempted, GIR,
 putts, and penalty strokes — no 18-row table. It's meant for a round played
 without detailed tracking, or entered well after the fact.
 
-The tradeoff: a totals-only round can't contribute to the eagle/birdie/
-par/bogey/double/worse breakdown (there's no hole-by-hole detail to
-classify), but it counts normally toward scoring average, fairway %, GIR %,
-putting average, and penalties. These rounds show a "Totals" badge
-alongside their date wherever rounds are listed.
+Since there's no hole-by-hole detail to classify, totals mode also has its
+own optional Eagles/Birdies/Pars/Bogeys/Doubles/Worse-than-Double count
+fields — these can't be inferred from just the total score, so if you want
+them to show up in the eagle/birdie/par/bogey/double/worse breakdown, enter
+them directly. A running "Holes accounted for: X of N" line under those
+fields is just a self-check (it doesn't block submission if the counts
+don't add up to holes played — someone might genuinely not remember every
+hole).
+
+A totals-only round counts normally toward scoring average, score
+differential, fairway %, GIR %, putting average, and penalties. These
+rounds show a "Totals" badge alongside their date wherever rounds are
+listed.
 
 Each player also has a Sex (Boy or Girl), set when they're added and
 editable afterward from their detail view in the admin dashboard.

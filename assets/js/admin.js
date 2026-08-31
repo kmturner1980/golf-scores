@@ -41,7 +41,11 @@
     editCourseOtherRow: document.getElementById('editCourseOtherRow'),
     editCourseOther: document.getElementById('editCourseOther'),
     editCourseOtherCity: document.getElementById('editCourseOtherCity'),
-    editTees: document.getElementById('editTees'),
+    editTeeSelect: document.getElementById('editTeeSelect'),
+    editTeeOtherRow: document.getElementById('editTeeOtherRow'),
+    editTeeOther: document.getElementById('editTeeOther'),
+    editCourseRating: document.getElementById('editCourseRating'),
+    editSlopeRating: document.getElementById('editSlopeRating'),
     editIsTournament: document.getElementById('editIsTournament'),
     editNotes: document.getElementById('editNotes'),
     editHoleRows: document.getElementById('editHoleRows'),
@@ -58,8 +62,21 @@
     editSummaryGIR: document.getElementById('editSummaryGIR'),
     editSummaryFairwaysHit: document.getElementById('editSummaryFairwaysHit'),
     editSummaryFairwaysAttempted: document.getElementById('editSummaryFairwaysAttempted'),
-    editSummaryPenalties: document.getElementById('editSummaryPenalties')
+    editSummaryPenalties: document.getElementById('editSummaryPenalties'),
+    editSummaryEagles: document.getElementById('editSummaryEagles'),
+    editSummaryBirdies: document.getElementById('editSummaryBirdies'),
+    editSummaryPars: document.getElementById('editSummaryPars'),
+    editSummaryBogeys: document.getElementById('editSummaryBogeys'),
+    editSummaryDoubles: document.getElementById('editSummaryDoubles'),
+    editSummaryWorse: document.getElementById('editSummaryWorse'),
+    editSummaryHoleCheck: document.getElementById('editSummaryHoleCheck'),
+    editSummaryHoleCheckTotal: document.getElementById('editSummaryHoleCheckTotal')
   };
+
+  const EDIT_SUMMARY_OUTCOME_FIELDS = [
+    els.editSummaryEagles, els.editSummaryBirdies, els.editSummaryPars,
+    els.editSummaryBogeys, els.editSummaryDoubles, els.editSummaryWorse
+  ];
 
   let currentPlayerToken = null;
   let editingRoundId = null;
@@ -94,6 +111,37 @@
   function editSelectedCourseData() {
     if (els.editCourseSelect.value === OTHER_COURSE_VALUE) return null;
     return IDAHO_COURSES.find((c) => c.name === els.editCourseSelect.value) || null;
+  }
+
+  // Repopulates the Tees dropdown from the currently selected course's
+  // verified tee list. `selectTeeName`, if given, preselects the tee that
+  // matches by name (used when opening an existing round for editing);
+  // otherwise leaves the browser's natural first-option default.
+  function populateEditTeeSelect(selectTeeName) {
+    const courseData = editSelectedCourseData();
+    const tees = (courseData && courseData.tees) || [];
+    const options = tees.map((t, i) =>
+      `<option value="${i}">${escapeHtml(t.name)} (Rating ${t.rating} / Slope ${t.slope})</option>`);
+    els.editTeeSelect.innerHTML = options.join('') +
+      `<option value="${OTHER_TEE_VALUE}">Other / not listed (enter manually)</option>`;
+    if (selectTeeName != null) {
+      const idx = tees.findIndex((t) => t.name === selectTeeName);
+      els.editTeeSelect.value = idx === -1 ? OTHER_TEE_VALUE : String(idx);
+    }
+    syncEditTeeOtherVisibility();
+  }
+
+  function syncEditTeeOtherVisibility() {
+    els.editTeeOtherRow.classList.toggle('hidden', els.editTeeSelect.value !== OTHER_TEE_VALUE);
+  }
+
+  function editSelectedTee() {
+    const courseData = editSelectedCourseData();
+    if (els.editTeeSelect.value !== OTHER_TEE_VALUE) {
+      const tee = courseData && courseData.tees && courseData.tees[Number(els.editTeeSelect.value)];
+      if (tee) return { name: tee.name, rating: tee.rating, slope: tee.slope };
+    }
+    return { name: els.editTeeOther.value.trim(), rating: els.editCourseRating.value, slope: els.editSlopeRating.value };
   }
 
   function escapeHtml(s) {
@@ -140,10 +188,12 @@
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     let agg = Stats.withRates(Stats.aggregateRounds(data.rounds, holesByRound));
     agg = Stats.applyTournamentWeighting(agg, data.rounds, holesByRound);
+    const avgDiff = Stats.averageDifferential(data.rounds, holesByRound);
     statTiles(els.teamTiles, [
       ['Players', data.players.length],
       ['Rounds Logged', data.rounds.length],
       ['Team Scoring Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
+      ['Team Avg Differential', Stats.fmtDiff(avgDiff)],
       ['Team Fairways %', Stats.fmtPct(agg.fairwayPct)],
       ['Team GIR %', Stats.fmtPct(agg.girPct)],
       ['Team Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)]
@@ -158,6 +208,7 @@
     { key: 'name', label: 'Name', value: (row) => row.player.Name.toLowerCase() },
     { key: 'rounds', label: 'Rounds', value: (row) => row.rounds.length },
     { key: 'avg', label: 'Avg /18', value: (row) => row.agg.scoringAvgPer18 },
+    { key: 'diff', label: 'Avg Diff', value: (row) => row.avgDiff },
     { key: 'fairway', label: 'Fairway %', value: (row) => row.agg.fairwayPct },
     { key: 'gir', label: 'GIR %', value: (row) => row.agg.girPct },
     { key: 'putts', label: 'Putts /18', value: (row) => row.agg.puttingAvgPer18 },
@@ -191,11 +242,12 @@
     }).join('');
     return `<table>
       <thead><tr>${headerHtml}</tr></thead>
-      <tbody>${sorted.map(({ player, rounds, agg }) => `
+      <tbody>${sorted.map(({ player, rounds, agg, avgDiff }) => `
         <tr class="clickable" data-token="${escapeHtml(player.Token)}">
           <td>${escapeHtml(player.Name)}</td>
           <td>${rounds.length}</td>
           <td>${Stats.fmtAvg(agg.scoringAvgPer18)}</td>
+          <td>${Stats.fmtDiff(avgDiff)}</td>
           <td>${Stats.fmtPct(agg.fairwayPct)}</td>
           <td>${Stats.fmtPct(agg.girPct)}</td>
           <td>${Stats.fmtAvg(agg.puttingAvgPer18)}</td>
@@ -221,7 +273,8 @@
       const rounds = roundsByPlayer[p.Token] || [];
       let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
       agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
-      return { player: p, rounds, agg };
+      const avgDiff = Stats.averageDifferential(rounds, holesByRound);
+      return { player: p, rounds, agg, avgDiff };
     });
 
     const groups = [
@@ -261,6 +314,7 @@
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
     agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+    const avgDiff = Stats.averageDifferential(rounds, holesByRound);
 
     els.playerDetailName.textContent = player.Name;
     els.playerDetailLink.value = playerLink(player.Token);
@@ -277,6 +331,7 @@
     statTiles(els.playerDetailTiles, [
       ['Rounds', rounds.length],
       ['Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
+      ['Avg Differential', Stats.fmtDiff(avgDiff)],
       ['Fairway %', Stats.fmtPct(agg.fairwayPct)],
       ['GIR %', Stats.fmtPct(agg.girPct)],
       ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)],
@@ -293,11 +348,12 @@
       els.playerDetailRounds.innerHTML = '<p class="muted">No rounds entered yet.</p>';
     } else {
       els.playerDetailRounds.innerHTML = `<table>
-        <thead><tr><th>Date</th><th>Course</th><th>Tees</th><th>Holes</th><th>Score</th><th>Putts</th><th colspan="2"></th></tr></thead>
+        <thead><tr><th>Date</th><th>Course</th><th>Tees</th><th>Holes</th><th>Score</th><th>Diff</th><th>Putts</th><th colspan="2"></th></tr></thead>
         <tbody>${rounds.map((r) => {
           const holes = holesByRound[r.RoundID] || [];
           const { score } = Stats.roundScoreAndPar(r, holes);
           const putts = Stats.roundPutts(r, holes);
+          const diff = Stats.scoreDifferential(r, holes);
           const badges = [
             Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
             Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
@@ -308,6 +364,7 @@
             <td>${escapeHtml(r.Tees)}</td>
             <td>${r.HolesPlayed}</td>
             <td>${score == null ? '—' : score}</td>
+            <td>${Stats.fmtDiff(diff)}</td>
             <td>${putts == null ? '—' : putts}</td>
             <td><button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button></td>
             <td><button type="button" class="danger delete-round" data-round="${escapeHtml(r.RoundID)}">Delete</button></td>
@@ -361,7 +418,10 @@
     // submission, so the Score inputs must stop being required while
     // they're hidden.
     els.editHoleRows.querySelectorAll('.score').forEach((input) => { input.required = !summary; });
-    if (summary) suggestEditSummaryPar();
+    if (summary) {
+      suggestEditSummaryPar();
+      updateEditSummaryHoleCheck();
+    }
   }
 
   // Convenience default (still editable): if the selected course has
@@ -374,9 +434,17 @@
     if (total) els.editSummaryPar.value = total;
   }
 
+  function updateEditSummaryHoleCheck() {
+    const total = holeRangeFor(els.editHolesPlayed.value).length;
+    const accounted = EDIT_SUMMARY_OUTCOME_FIELDS.reduce((sum, el) => sum + (Number(el.value) || 0), 0);
+    els.editSummaryHoleCheck.textContent = accounted;
+    els.editSummaryHoleCheckTotal.textContent = total;
+  }
+
   function clearEditSummaryFields() {
     [els.editSummaryScore, els.editSummaryPar, els.editSummaryPutts, els.editSummaryGIR,
-      els.editSummaryFairwaysHit, els.editSummaryFairwaysAttempted, els.editSummaryPenalties]
+      els.editSummaryFairwaysHit, els.editSummaryFairwaysAttempted, els.editSummaryPenalties,
+      ...EDIT_SUMMARY_OUTCOME_FIELDS]
       .forEach((el) => { el.value = ''; });
   }
 
@@ -390,7 +458,6 @@
     els.editRoundMessage.innerHTML = '';
     els.editDate.value = toDateInputValue(round.Date);
     els.editHolesPlayed.value = round.HolesPlayed;
-    els.editTees.value = round.Tees || '';
     els.editIsTournament.checked = Stats.isTournamentRound(round);
     els.editNotes.value = round.Notes || '';
 
@@ -399,6 +466,17 @@
     els.editCourseOtherRow.classList.toggle('hidden', !isOther);
     els.editCourseOther.value = isOther ? round.Course : '';
     els.editCourseOtherCity.value = '';
+
+    populateEditTeeSelect(round.Tees);
+    if (els.editTeeSelect.value === OTHER_TEE_VALUE) {
+      els.editTeeOther.value = round.Tees || '';
+      els.editCourseRating.value = round.CourseRating != null ? round.CourseRating : '';
+      els.editSlopeRating.value = round.SlopeRating != null ? round.SlopeRating : '';
+    } else {
+      els.editTeeOther.value = '';
+      els.editCourseRating.value = '';
+      els.editSlopeRating.value = '';
+    }
 
     const summary = Stats.isSummaryRound(round);
     els.editEntryModeHoles.checked = !summary;
@@ -412,6 +490,12 @@
       els.editSummaryFairwaysHit.value = round.SummaryFairwaysHit;
       els.editSummaryFairwaysAttempted.value = round.SummaryFairwaysAttempted;
       els.editSummaryPenalties.value = round.SummaryPenalties;
+      els.editSummaryEagles.value = round.SummaryEagles;
+      els.editSummaryBirdies.value = round.SummaryBirdies;
+      els.editSummaryPars.value = round.SummaryPars;
+      els.editSummaryBogeys.value = round.SummaryBogeys;
+      els.editSummaryDoubles.value = round.SummaryDoubles;
+      els.editSummaryWorse.value = round.SummaryWorse;
     }
 
     const existing = {};
@@ -446,7 +530,6 @@
     els.editRoundMessage.innerHTML = '';
     els.editDate.value = new Date().toISOString().slice(0, 10);
     els.editHolesPlayed.value = '18';
-    els.editTees.value = '';
     els.editIsTournament.checked = false;
     els.editNotes.value = '';
     els.editEntryModeHoles.checked = true;
@@ -457,6 +540,10 @@
     els.editCourseOtherRow.classList.toggle('hidden', els.editCourseSelect.value !== OTHER_COURSE_VALUE);
     els.editCourseOther.value = '';
     els.editCourseOtherCity.value = '';
+    populateEditTeeSelect();
+    els.editTeeOther.value = '';
+    els.editCourseRating.value = '';
+    els.editSlopeRating.value = '';
 
     HoleTable.render(els.editHoleRows, holeRangeFor('18'), null, {});
     HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
@@ -568,8 +655,11 @@
     // Par stays editable here (unlike the player form) -- this only fills
     // in the values, it never locks the inputs.
     HoleTable.applyCoursePars(els.editHoleRows, editSelectedCourseData());
+    populateEditTeeSelect();
     if (isEditSummaryMode()) suggestEditSummaryPar();
   });
+
+  els.editTeeSelect.addEventListener('change', syncEditTeeOtherVisibility);
 
   els.editHolesPlayed.addEventListener('change', () => {
     HoleTable.render(els.editHoleRows, holeRangeFor(els.editHolesPlayed.value), null, {});
@@ -584,6 +674,7 @@
 
   els.editEntryModeHoles.addEventListener('change', syncEditEntryModeVisibility);
   els.editEntryModeSummary.addEventListener('change', syncEditEntryModeVisibility);
+  EDIT_SUMMARY_OUTCOME_FIELDS.forEach((el) => el.addEventListener('input', updateEditSummaryHoleCheck));
 
   els.editCancelBtn.addEventListener('click', () => {
     editingRoundId = null;
@@ -600,11 +691,14 @@
       await UI.withBusy(els.editSaveBtn, isAdding ? 'Adding…' : 'Saving…', async () => {
         const course = editedCourseName();
         if (!course) throw new Error('Course is required.');
+        const tee = editSelectedTee();
 
         const payload = {
           date: els.editDate.value,
           course,
-          tees: els.editTees.value,
+          tees: tee.name,
+          courseRating: tee.rating,
+          slopeRating: tee.slope,
           holesPlayed: els.editHolesPlayed.value,
           isTournament: els.editIsTournament.checked,
           notes: els.editNotes.value
@@ -622,7 +716,13 @@
             summaryGIR: els.editSummaryGIR.value,
             summaryFairwaysHit: els.editSummaryFairwaysHit.value,
             summaryFairwaysAttempted: els.editSummaryFairwaysAttempted.value,
-            summaryPenalties: els.editSummaryPenalties.value
+            summaryPenalties: els.editSummaryPenalties.value,
+            summaryEagles: els.editSummaryEagles.value,
+            summaryBirdies: els.editSummaryBirdies.value,
+            summaryPars: els.editSummaryPars.value,
+            summaryBogeys: els.editSummaryBogeys.value,
+            summaryDoubles: els.editSummaryDoubles.value,
+            summaryWorse: els.editSummaryWorse.value
           });
         } else {
           const holes = HoleTable.collect(els.editHoleRows);

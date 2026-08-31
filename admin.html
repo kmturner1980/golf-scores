@@ -123,8 +123,8 @@
             <select id="editCourseSelect" required></select>
           </div>
           <div class="field">
-            <label for="editTees">Tees</label>
-            <input type="text" id="editTees">
+            <label for="editTeeSelect">Tees</label>
+            <select id="editTeeSelect"></select>
           </div>
         </div>
         <div class="field-row" id="editCourseOtherRow">
@@ -135,6 +135,21 @@
           <div class="field">
             <label for="editCourseOtherCity">City / State</label>
             <input type="text" id="editCourseOtherCity">
+          </div>
+        </div>
+
+        <div class="summary-grid" id="editTeeOtherRow">
+          <div class="field" style="margin-bottom:0">
+            <label for="editTeeOther">Tee Name</label>
+            <input type="text" id="editTeeOther" placeholder="e.g. Blue">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="editCourseRating">Course Rating</label>
+            <input type="number" step="0.1" id="editCourseRating" min="55" max="80">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="editSlopeRating">Slope Rating</label>
+            <input type="number" id="editSlopeRating" min="55" max="155">
           </div>
         </div>
 
@@ -200,6 +215,35 @@
             </div>
           </div>
           <p class="muted">Fairways/GIR/putts/penalties are optional — leave any blank if not tracked; they just won't count toward those stats for this round.</p>
+
+          <p class="muted"><strong>Hole outcomes</strong> (optional, but needed for these to show up in stats — there's no way to infer them from just the total score):</p>
+          <div class="summary-grid">
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryEagles">Eagles or Better</label>
+              <input type="number" id="editSummaryEagles" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryBirdies">Birdies</label>
+              <input type="number" id="editSummaryBirdies" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryPars">Pars</label>
+              <input type="number" id="editSummaryPars" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryBogeys">Bogeys</label>
+              <input type="number" id="editSummaryBogeys" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryDoubles">Doubles</label>
+              <input type="number" id="editSummaryDoubles" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryWorse">Worse Than Double</label>
+              <input type="number" id="editSummaryWorse" min="0" max="18">
+            </div>
+          </div>
+          <p class="muted">Holes accounted for: <span id="editSummaryHoleCheck">0</span> of <span id="editSummaryHoleCheckTotal">18</span></p>
         </div>
 
         <div class="field">

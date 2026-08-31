@@ -19,6 +19,11 @@
     courseOther: document.getElementById('courseOther'),
     courseOtherCity: document.getElementById('courseOtherCity'),
     courseHint: document.getElementById('courseHint'),
+    teeSelect: document.getElementById('teeSelect'),
+    teeOtherRow: document.getElementById('teeOtherRow'),
+    teeOther: document.getElementById('teeOther'),
+    courseRating: document.getElementById('courseRating'),
+    slopeRating: document.getElementById('slopeRating'),
     isTournament: document.getElementById('isTournament'),
     entryModeHoles: document.getElementById('entryModeHoles'),
     entryModeSummary: document.getElementById('entryModeSummary'),
@@ -30,8 +35,21 @@
     summaryGIR: document.getElementById('summaryGIR'),
     summaryFairwaysHit: document.getElementById('summaryFairwaysHit'),
     summaryFairwaysAttempted: document.getElementById('summaryFairwaysAttempted'),
-    summaryPenalties: document.getElementById('summaryPenalties')
+    summaryPenalties: document.getElementById('summaryPenalties'),
+    summaryEagles: document.getElementById('summaryEagles'),
+    summaryBirdies: document.getElementById('summaryBirdies'),
+    summaryPars: document.getElementById('summaryPars'),
+    summaryBogeys: document.getElementById('summaryBogeys'),
+    summaryDoubles: document.getElementById('summaryDoubles'),
+    summaryWorse: document.getElementById('summaryWorse'),
+    summaryHoleCheck: document.getElementById('summaryHoleCheck'),
+    summaryHoleCheckTotal: document.getElementById('summaryHoleCheckTotal')
   };
+
+  const SUMMARY_OUTCOME_FIELDS = [
+    els.summaryEagles, els.summaryBirdies, els.summaryPars,
+    els.summaryBogeys, els.summaryDoubles, els.summaryWorse
+  ];
 
   let playerData = null;
 
@@ -65,6 +83,31 @@
     return IDAHO_COURSES.find((c) => c.name === els.courseSelect.value) || null;
   }
 
+  // Repopulates the Tees dropdown from the currently selected course's
+  // verified tee list (if any). Always keeps an "Other / manual" option.
+  function populateTeeSelect() {
+    const courseData = selectedCourseData();
+    const tees = (courseData && courseData.tees) || [];
+    const options = tees.map((t, i) =>
+      `<option value="${i}">${escapeHtml(t.name)} (Rating ${t.rating} / Slope ${t.slope})</option>`);
+    els.teeSelect.innerHTML = options.join('') +
+      `<option value="${OTHER_TEE_VALUE}">Other / not listed (enter manually)</option>`;
+    syncTeeOtherVisibility();
+  }
+
+  function syncTeeOtherVisibility() {
+    els.teeOtherRow.classList.toggle('hidden', els.teeSelect.value !== OTHER_TEE_VALUE);
+  }
+
+  function selectedTee() {
+    const courseData = selectedCourseData();
+    if (els.teeSelect.value !== OTHER_TEE_VALUE) {
+      const tee = courseData && courseData.tees && courseData.tees[Number(els.teeSelect.value)];
+      if (tee) return { name: tee.name, rating: tee.rating, slope: tee.slope };
+    }
+    return { name: els.teeOther.value.trim(), rating: els.courseRating.value, slope: els.slopeRating.value };
+  }
+
   function isSummaryMode() {
     return els.entryModeSummary.checked;
   }
@@ -77,7 +120,10 @@
     // submission, so the Score inputs must stop being required while
     // they're hidden.
     els.holeRows.querySelectorAll('.score').forEach((input) => { input.required = !summary; });
-    if (summary) suggestSummaryPar();
+    if (summary) {
+      suggestSummaryPar();
+      updateSummaryHoleCheck();
+    }
   }
 
   // Convenience default (still editable): if the selected course has
@@ -89,6 +135,15 @@
     const holes = holeRangeFor(els.holesPlayed.value);
     const total = holes.reduce((sum, h) => sum + (courseData.pars[h - 1] || 0), 0);
     if (total) els.summaryPar.value = total;
+  }
+
+  // Non-blocking self-check: how many of the holes played have an outcome
+  // (eagle/birdie/.../worse) accounted for, vs. the holes actually played.
+  function updateSummaryHoleCheck() {
+    const total = holeRangeFor(els.holesPlayed.value).length;
+    const accounted = SUMMARY_OUTCOME_FIELDS.reduce((sum, el) => sum + (Number(el.value) || 0), 0);
+    els.summaryHoleCheck.textContent = accounted;
+    els.summaryHoleCheckTotal.textContent = total;
   }
 
   function holeRangeFor(mode) {
@@ -116,9 +171,11 @@
     const holesByRound = Stats.groupBy(holeScores, 'RoundID');
     let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
     agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+    const avgDiff = Stats.averageDifferential(rounds, holesByRound);
     const tiles = [
       ['Rounds', rounds.length],
       ['Scoring Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
+      ['Avg Differential', Stats.fmtDiff(avgDiff)],
       ['Fairways %', Stats.fmtPct(agg.fairwayPct)],
       ['GIR %', Stats.fmtPct(agg.girPct)],
       ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)],
@@ -143,6 +200,7 @@
       const { score, par } = Stats.roundScoreAndPar(r, holes);
       const diff = par ? score - par : null;
       const diffStr = diff == null ? '' : (diff > 0 ? `+${diff}` : diff === 0 ? 'E' : diff);
+      const scoreDiff = Stats.scoreDifferential(r, holes);
       const badges = [
         Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
         Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
@@ -152,10 +210,11 @@
         <td>${escapeHtml(r.Course)}</td>
         <td>${r.HolesPlayed}</td>
         <td>${score == null ? '—' : score} <span class="muted">${diffStr}</span></td>
+        <td>${Stats.fmtDiff(scoreDiff)}</td>
       </tr>`;
     }).join('');
     els.recentRounds.innerHTML = `<table>
-      <thead><tr><th>Date</th><th>Course</th><th>Holes</th><th>Score</th></tr></thead>
+      <thead><tr><th>Date</th><th>Course</th><th>Holes</th><th>Score</th><th>Differential</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
   }
@@ -189,6 +248,7 @@
       els.content.classList.remove('hidden');
       els.date.value = new Date().toISOString().slice(0, 10);
       populateCourseSelect();
+      populateTeeSelect();
       renderHoleRows();
       syncEntryModeVisibility();
     } catch (err) {
@@ -204,13 +264,16 @@
   els.courseSelect.addEventListener('change', () => {
     syncCourseOtherVisibility();
     renderHoleRows();
+    populateTeeSelect();
     syncEntryModeVisibility();
   });
+  els.teeSelect.addEventListener('change', syncTeeOtherVisibility);
   els.holeRows.addEventListener('input', (e) => {
     if (e.target.classList.contains('score')) HoleTable.updateRunningTotal(els.holeRows, els.runningTotal);
   });
   els.entryModeHoles.addEventListener('change', syncEntryModeVisibility);
   els.entryModeSummary.addEventListener('change', syncEntryModeVisibility);
+  SUMMARY_OUTCOME_FIELDS.forEach((el) => el.addEventListener('input', updateSummaryHoleCheck));
 
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -219,13 +282,16 @@
       await UI.withBusy(els.submitBtn, 'Submitting…', async () => {
         const course = selectedCourseName();
         if (!course) throw new Error('Course is required.');
+        const tee = selectedTee();
 
         const payload = {
           action: 'submitRound',
           token,
           date: els.date.value,
           course,
-          tees: document.getElementById('tees').value,
+          tees: tee.name,
+          courseRating: tee.rating,
+          slopeRating: tee.slope,
           holesPlayed: els.holesPlayed.value,
           isTournament: els.isTournament.checked,
           notes: document.getElementById('notes').value
@@ -243,7 +309,13 @@
             summaryGIR: els.summaryGIR.value,
             summaryFairwaysHit: els.summaryFairwaysHit.value,
             summaryFairwaysAttempted: els.summaryFairwaysAttempted.value,
-            summaryPenalties: els.summaryPenalties.value
+            summaryPenalties: els.summaryPenalties.value,
+            summaryEagles: els.summaryEagles.value,
+            summaryBirdies: els.summaryBirdies.value,
+            summaryPars: els.summaryPars.value,
+            summaryBogeys: els.summaryBogeys.value,
+            summaryDoubles: els.summaryDoubles.value,
+            summaryWorse: els.summaryWorse.value
           });
         } else {
           const holes = HoleTable.collect(els.holeRows);
@@ -261,6 +333,7 @@
       els.date.value = new Date().toISOString().slice(0, 10);
       syncCourseOtherVisibility();
       renderHoleRows();
+      populateTeeSelect();
       syncEntryModeVisibility();
       playerData = await Api.get({ action: 'getPlayer', token });
       renderStatTiles(playerData.rounds, playerData.holeScores);

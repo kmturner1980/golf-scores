@@ -12,6 +12,8 @@ function roundRowFields_(payload) {
     Date: payload.date,
     Course: (payload.course || '').toString().trim(),
     Tees: (payload.tees || '').toString().trim(),
+    CourseRating: num(payload.courseRating),
+    SlopeRating: num(payload.slopeRating),
     HolesPlayed: payload.holesPlayed || (payload.holes ? payload.holes.length : payload.summaryHoles),
     IsTournament: !!payload.isTournament,
     EntryMode: summary ? 'summary' : 'holes',
@@ -22,6 +24,12 @@ function roundRowFields_(payload) {
     SummaryGIR: summary ? num(payload.summaryGIR) : '',
     SummaryPutts: summary ? num(payload.summaryPutts) : '',
     SummaryPenalties: summary ? num(payload.summaryPenalties) : '',
+    SummaryEagles: summary ? num(payload.summaryEagles) : '',
+    SummaryBirdies: summary ? num(payload.summaryBirdies) : '',
+    SummaryPars: summary ? num(payload.summaryPars) : '',
+    SummaryBogeys: summary ? num(payload.summaryBogeys) : '',
+    SummaryDoubles: summary ? num(payload.summaryDoubles) : '',
+    SummaryWorse: summary ? num(payload.summaryWorse) : '',
     Notes: (payload.notes || '').toString().trim()
   };
 }

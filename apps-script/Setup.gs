@@ -15,9 +15,11 @@ function initializeSheets() {
 
   var rounds = ss.getSheetByName(SHEET_ROUNDS) || ss.insertSheet(SHEET_ROUNDS);
   if (rounds.getLastRow() === 0) {
-    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'HolesPlayed', 'IsTournament',
+    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'CourseRating', 'SlopeRating',
+      'HolesPlayed', 'IsTournament',
       'EntryMode', 'SummaryPar', 'SummaryScore', 'SummaryFairwaysHit', 'SummaryFairwaysAttempted',
-      'SummaryGIR', 'SummaryPutts', 'SummaryPenalties', 'Notes', 'SubmittedAt']);
+      'SummaryGIR', 'SummaryPutts', 'SummaryPenalties', 'SummaryEagles', 'SummaryBirdies', 'SummaryPars',
+      'SummaryBogeys', 'SummaryDoubles', 'SummaryWorse', 'Notes', 'SubmittedAt']);
   }
 
   var holeScores = ss.getSheetByName(SHEET_HOLE_SCORES) || ss.insertSheet(SHEET_HOLE_SCORES);
@@ -74,13 +76,16 @@ function migrateAddTournamentColumn() {
 /**
  * Run this once if your Rounds sheet was created before "summary-only"
  * round entry existed (totals instead of hole-by-hole). Safe to run more
- * than once. Existing rounds are unaffected -- they stay hole-by-hole.
+ * than once (including after this function later gained more columns --
+ * it only adds whatever's still missing). Existing rounds are unaffected --
+ * they stay hole-by-hole.
  */
 function migrateAddSummaryColumns() {
   var sheet = getSheet_(SHEET_ROUNDS);
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var newCols = ['EntryMode', 'SummaryPar', 'SummaryScore', 'SummaryFairwaysHit',
-    'SummaryFairwaysAttempted', 'SummaryGIR', 'SummaryPutts', 'SummaryPenalties'];
+    'SummaryFairwaysAttempted', 'SummaryGIR', 'SummaryPutts', 'SummaryPenalties',
+    'SummaryEagles', 'SummaryBirdies', 'SummaryPars', 'SummaryBogeys', 'SummaryDoubles', 'SummaryWorse'];
   var missing = newCols.filter(function (c) { return headers.indexOf(c) === -1; });
   if (!missing.length) {
     Logger.log('Summary columns already exist -- nothing to do.');
@@ -92,6 +97,29 @@ function migrateAddSummaryColumns() {
     sheet.getRange(1, afterCol + i + 1).setValue(name);
   });
   Logger.log('Added summary columns to Rounds sheet: ' + missing.join(', '));
+}
+
+/**
+ * Run this once if your Rounds sheet was created before Course Rating /
+ * Slope Rating tracking existed. Safe to run more than once. Applies to
+ * both hole-by-hole and summary-only rounds -- it's tied to which tee was
+ * played, not how the round was scored.
+ */
+function migrateAddRatingColumns() {
+  var sheet = getSheet_(SHEET_ROUNDS);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var newCols = ['CourseRating', 'SlopeRating'];
+  var missing = newCols.filter(function (c) { return headers.indexOf(c) === -1; });
+  if (!missing.length) {
+    Logger.log('Rating columns already exist -- nothing to do.');
+    return;
+  }
+  var afterCol = headers.indexOf('Tees') + 1;
+  missing.forEach(function (name, i) {
+    sheet.insertColumnAfter(afterCol + i);
+    sheet.getRange(1, afterCol + i + 1).setValue(name);
+  });
+  Logger.log('Added rating columns to Rounds sheet: ' + missing.join(', '));
 }
 
 /**

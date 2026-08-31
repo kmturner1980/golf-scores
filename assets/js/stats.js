@@ -35,6 +35,7 @@ const Stats = {
       fairwaysHit: 0,
       fairwaysAttempted: 0,
       girHit: 0,
+      girCounted: 0,
       totalPutts: 0,
       puttsCounted: 0,
       totalPenalties: 0
@@ -53,6 +54,9 @@ const Stats = {
         agg.fairwaysAttempted++;
         if (h.FairwayHit === 'Y') agg.fairwaysHit++;
       }
+      // Hole-by-hole entry always has a GIR value (the control defaults to
+      // "No"), so every counted hole counts toward the GIR% denominator.
+      agg.girCounted++;
       if (h.GIR === 'Y') agg.girHit++;
       if (h.Putts !== '' && h.Putts != null && !isNaN(Number(h.Putts))) {
         agg.totalPutts += Number(h.Putts);
@@ -68,7 +72,7 @@ const Stats = {
   withRates(agg) {
     return Object.assign({}, agg, {
       fairwayPct: agg.fairwaysAttempted ? agg.fairwaysHit / agg.fairwaysAttempted : null,
-      girPct: agg.holesPlayed ? agg.girHit / agg.holesPlayed : null,
+      girPct: agg.girCounted ? agg.girHit / agg.girCounted : null,
       puttingAvgPerHole: agg.puttsCounted ? agg.totalPutts / agg.puttsCounted : null,
       puttingAvgPer18: agg.puttsCounted ? (agg.totalPutts / agg.puttsCounted) * 18 : null,
       scoringAvgPerHole: agg.holesPlayed ? agg.totalStrokes / agg.holesPlayed : null,
@@ -134,18 +138,55 @@ const Stats = {
 
     summaryRounds.forEach((r) => {
       const holes = Stats.holesCountFor(r);
-      const num = (v) => (v === '' || v == null ? 0 : Number(v));
+      const provided = (v) => v !== '' && v != null;
+      const num = (v) => (provided(v) ? Number(v) : 0);
       agg.holesPlayed += holes;
       agg.totalStrokes += num(r.SummaryScore);
       agg.fairwaysAttempted += num(r.SummaryFairwaysAttempted);
       agg.fairwaysHit += num(r.SummaryFairwaysHit);
       agg.girHit += num(r.SummaryGIR);
+      agg.girCounted += provided(r.SummaryGIR) ? holes : 0;
       agg.totalPutts += num(r.SummaryPutts);
-      agg.puttsCounted += num(r.SummaryPutts) ? holes : 0;
+      agg.puttsCounted += provided(r.SummaryPutts) ? holes : 0;
       agg.totalPenalties += num(r.SummaryPenalties);
+      agg.eagles += num(r.SummaryEagles);
+      agg.birdies += num(r.SummaryBirdies);
+      agg.pars += num(r.SummaryPars);
+      agg.bogeys += num(r.SummaryBogeys);
+      agg.doubles += num(r.SummaryDoubles);
+      agg.worse += num(r.SummaryWorse);
     });
 
     return agg;
+  },
+
+  // Standard USGA-style score differential: how a round compares to scratch
+  // once the tee's difficulty is normalized out. Needs a course rating and
+  // slope rating for the tee played -- null if either is missing (e.g. an
+  // "Other" course entered without them).
+  scoreDifferential(round, holeRows) {
+    const rating = round.CourseRating === '' || round.CourseRating == null ? null : Number(round.CourseRating);
+    const slope = round.SlopeRating === '' || round.SlopeRating == null ? null : Number(round.SlopeRating);
+    if (rating == null || !slope) return null;
+    const { score } = Stats.roundScoreAndPar(round, holeRows);
+    if (score == null) return null;
+    return (113 / slope) * (score - rating);
+  },
+
+  // Average score differential across rounds, tournament-weighted the same
+  // way scoring average is. Rounds missing a rating/slope are excluded
+  // entirely (not treated as 0).
+  averageDifferential(rounds, holesByRound) {
+    let weightedSum = 0;
+    let weightedCount = 0;
+    rounds.forEach((r) => {
+      const diff = Stats.scoreDifferential(r, holesByRound[r.RoundID] || []);
+      if (diff == null) return;
+      const weight = Stats.isTournamentRound(r) ? 2 : 1;
+      weightedSum += diff * weight;
+      weightedCount += weight;
+    });
+    return weightedCount ? weightedSum / weightedCount : null;
   },
 
   /**
@@ -179,6 +220,11 @@ const Stats = {
 
   fmtAvg(v) {
     return v == null ? '—' : v.toFixed(1);
+  },
+
+  fmtDiff(v) {
+    if (v == null) return '—';
+    return (v > 0 ? '+' : '') + v.toFixed(1);
   },
 
   /**
