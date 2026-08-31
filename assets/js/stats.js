@@ -86,20 +86,86 @@ const Stats = {
     return round.IsTournament === true || round.IsTournament === 'TRUE' || round.IsTournament === 'true';
   },
 
+  isSummaryRound(round) {
+    return round.EntryMode === 'summary';
+  },
+
+  // HolesPlayed is stored as "18", "9F", or "9B" (the front/back distinction
+  // only matters for rendering the hole-by-hole table) -- this just wants
+  // the count.
+  holesCountFor(round) {
+    return Number(round.HolesPlayed === '9F' || round.HolesPlayed === '9B' ? 9 : round.HolesPlayed) || 0;
+  },
+
+  // The score and par for one round regardless of how it was entered --
+  // from its hole rows for a normal round, from the typed totals for a
+  // summary-only one.
+  roundScoreAndPar(round, holeRows) {
+    if (Stats.isSummaryRound(round)) {
+      return {
+        score: round.SummaryScore === '' || round.SummaryScore == null ? null : Number(round.SummaryScore),
+        par: round.SummaryPar === '' || round.SummaryPar == null ? null : Number(round.SummaryPar)
+      };
+    }
+    const score = Stats.roundTotal(holeRows);
+    const par = holeRows.reduce((s, h) => s + (Number(h.Par) || 0), 0);
+    return { score, par: par || null };
+  },
+
+  roundPutts(round, holeRows) {
+    if (Stats.isSummaryRound(round)) {
+      return round.SummaryPutts === '' || round.SummaryPutts == null ? null : Number(round.SummaryPutts);
+    }
+    return holeRows.reduce((s, h) => s + (Number(h.Putts) || 0), 0);
+  },
+
+  /**
+   * Combines aggregateHoles() over every hole-by-hole round with the typed
+   * totals from any summary-only rounds, into one agg in the same shape.
+   * Summary rounds can't contribute to per-hole breakdowns (eagles, birdies,
+   * pars, bogeys, doubles, worse) since there's no hole-by-hole detail to
+   * classify -- only to the totals (strokes, fairways, GIR, putts,
+   * penalties). `holesByRound` is Stats.groupBy(holeScores, 'RoundID').
+   */
+  aggregateRounds(rounds, holesByRound) {
+    const holeByHoleRounds = rounds.filter((r) => !Stats.isSummaryRound(r));
+    const summaryRounds = rounds.filter(Stats.isSummaryRound);
+    const agg = Stats.aggregateHoles(holeByHoleRounds.flatMap((r) => holesByRound[r.RoundID] || []));
+
+    summaryRounds.forEach((r) => {
+      const holes = Stats.holesCountFor(r);
+      const num = (v) => (v === '' || v == null ? 0 : Number(v));
+      agg.holesPlayed += holes;
+      agg.totalStrokes += num(r.SummaryScore);
+      agg.fairwaysAttempted += num(r.SummaryFairwaysAttempted);
+      agg.fairwaysHit += num(r.SummaryFairwaysHit);
+      agg.girHit += num(r.SummaryGIR);
+      agg.totalPutts += num(r.SummaryPutts);
+      agg.puttsCounted += num(r.SummaryPutts) ? holes : 0;
+      agg.totalPenalties += num(r.SummaryPenalties);
+    });
+
+    return agg;
+  },
+
   /**
    * Recomputes scoring average so tournament rounds count double, leaving
    * every other stat on `agg` (fairway%, GIR%, putting, birdie/bogey counts,
    * etc.) untouched -- only "average scoring" is meant to be weighted.
-   * `holesByRound` is Stats.groupBy(holeScores, 'RoundID').
+   * `holesByRound` is Stats.groupBy(holeScores, 'RoundID'). Handles a mix of
+   * hole-by-hole and summary-only rounds.
    */
   applyTournamentWeighting(agg, rounds, holesByRound) {
     let weightedStrokes = 0;
     let weightedHoles = 0;
     rounds.forEach((r) => {
-      const holes = (holesByRound[r.RoundID] || []).filter((h) => Number(h.Par) && Number(h.Score));
       const weight = Stats.isTournamentRound(r) ? 2 : 1;
-      weightedStrokes += Stats.roundTotal(holes) * weight;
-      weightedHoles += holes.length * weight;
+      const { score } = Stats.roundScoreAndPar(r, holesByRound[r.RoundID] || []);
+      const holeCount = Stats.isSummaryRound(r)
+        ? Stats.holesCountFor(r)
+        : (holesByRound[r.RoundID] || []).filter((h) => Number(h.Par) && Number(h.Score)).length;
+      weightedStrokes += (score || 0) * weight;
+      weightedHoles += holeCount * weight;
     });
     return Object.assign({}, agg, {
       scoringAvgPerHole: weightedHoles ? weightedStrokes / weightedHoles : null,

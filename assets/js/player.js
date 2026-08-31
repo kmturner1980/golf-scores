@@ -19,7 +19,18 @@
     courseOther: document.getElementById('courseOther'),
     courseOtherCity: document.getElementById('courseOtherCity'),
     courseHint: document.getElementById('courseHint'),
-    isTournament: document.getElementById('isTournament')
+    isTournament: document.getElementById('isTournament'),
+    entryModeHoles: document.getElementById('entryModeHoles'),
+    entryModeSummary: document.getElementById('entryModeSummary'),
+    holeByHoleSection: document.getElementById('holeByHoleSection'),
+    summarySection: document.getElementById('summarySection'),
+    summaryScore: document.getElementById('summaryScore'),
+    summaryPar: document.getElementById('summaryPar'),
+    summaryPutts: document.getElementById('summaryPutts'),
+    summaryGIR: document.getElementById('summaryGIR'),
+    summaryFairwaysHit: document.getElementById('summaryFairwaysHit'),
+    summaryFairwaysAttempted: document.getElementById('summaryFairwaysAttempted'),
+    summaryPenalties: document.getElementById('summaryPenalties')
   };
 
   let playerData = null;
@@ -54,6 +65,32 @@
     return IDAHO_COURSES.find((c) => c.name === els.courseSelect.value) || null;
   }
 
+  function isSummaryMode() {
+    return els.entryModeSummary.checked;
+  }
+
+  function syncEntryModeVisibility() {
+    const summary = isSummaryMode();
+    els.holeByHoleSection.classList.toggle('hidden', summary);
+    els.summarySection.classList.toggle('hidden', !summary);
+    // A required field inside a hidden section still blocks native form
+    // submission, so the Score inputs must stop being required while
+    // they're hidden.
+    els.holeRows.querySelectorAll('.score').forEach((input) => { input.required = !summary; });
+    if (summary) suggestSummaryPar();
+  }
+
+  // Convenience default (still editable): if the selected course has
+  // verified pars, sum the par for the selected holes range so the player
+  // doesn't have to add it up themselves.
+  function suggestSummaryPar() {
+    const courseData = selectedCourseData();
+    if (!courseData || !courseData.pars || els.summaryPar.value) return;
+    const holes = holeRangeFor(els.holesPlayed.value);
+    const total = holes.reduce((sum, h) => sum + (courseData.pars[h - 1] || 0), 0);
+    if (total) els.summaryPar.value = total;
+  }
+
   function holeRangeFor(mode) {
     if (mode === '9F') return range(1, 9);
     if (mode === '9B') return range(10, 18);
@@ -76,8 +113,9 @@
   }
 
   function renderStatTiles(rounds, holeScores) {
-    let agg = Stats.withRates(Stats.aggregateHoles(holeScores));
-    agg = Stats.applyTournamentWeighting(agg, rounds, Stats.groupBy(holeScores, 'RoundID'));
+    const holesByRound = Stats.groupBy(holeScores, 'RoundID');
+    let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
+    agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
     const tiles = [
       ['Rounds', rounds.length],
       ['Scoring Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
@@ -102,15 +140,18 @@
     }
     const rowsHtml = sorted.map((r) => {
       const holes = byRound[r.RoundID] || [];
-      const total = Stats.roundTotal(holes);
-      const parTotal = holes.reduce((s, h) => s + (Number(h.Par) || 0), 0);
-      const diff = parTotal ? total - parTotal : null;
+      const { score, par } = Stats.roundScoreAndPar(r, holes);
+      const diff = par ? score - par : null;
       const diffStr = diff == null ? '' : (diff > 0 ? `+${diff}` : diff === 0 ? 'E' : diff);
+      const badges = [
+        Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
+        Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
+      ].filter(Boolean).join(' ');
       return `<tr>
-        <td>${formatDate(r.Date)}${Stats.isTournamentRound(r) ? ' <span class="pill">Tournament</span>' : ''}</td>
+        <td>${formatDate(r.Date)} ${badges}</td>
         <td>${escapeHtml(r.Course)}</td>
         <td>${r.HolesPlayed}</td>
-        <td>${total} <span class="muted">${diffStr}</span></td>
+        <td>${score == null ? '—' : score} <span class="muted">${diffStr}</span></td>
       </tr>`;
     }).join('');
     els.recentRounds.innerHTML = `<table>
@@ -149,57 +190,83 @@
       els.date.value = new Date().toISOString().slice(0, 10);
       populateCourseSelect();
       renderHoleRows();
+      syncEntryModeVisibility();
     } catch (err) {
       els.loadError.textContent = err.message;
       els.loadError.classList.remove('hidden');
     }
   }
 
-  els.holesPlayed.addEventListener('change', renderHoleRows);
+  els.holesPlayed.addEventListener('change', () => {
+    renderHoleRows();
+    syncEntryModeVisibility();
+  });
   els.courseSelect.addEventListener('change', () => {
     syncCourseOtherVisibility();
     renderHoleRows();
+    syncEntryModeVisibility();
   });
   els.holeRows.addEventListener('input', (e) => {
     if (e.target.classList.contains('score')) HoleTable.updateRunningTotal(els.holeRows, els.runningTotal);
   });
+  els.entryModeHoles.addEventListener('change', syncEntryModeVisibility);
+  els.entryModeSummary.addEventListener('change', syncEntryModeVisibility);
 
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.formMessage.innerHTML = '';
-    els.submitBtn.disabled = true;
-    els.submitBtn.textContent = 'Submitting…';
     try {
-      const course = selectedCourseName();
-      if (!course) throw new Error('Course is required.');
-      const holes = HoleTable.collect(els.holeRows);
-      for (const h of holes) {
-        if (!h.par || !h.score) throw new Error(`Hole ${h.hole} needs a par and a score.`);
-      }
-      await Api.post({
-        action: 'submitRound',
-        token,
-        date: els.date.value,
-        course,
-        tees: document.getElementById('tees').value,
-        holesPlayed: els.holesPlayed.value,
-        isTournament: els.isTournament.checked,
-        notes: document.getElementById('notes').value,
-        holes
+      await UI.withBusy(els.submitBtn, 'Submitting…', async () => {
+        const course = selectedCourseName();
+        if (!course) throw new Error('Course is required.');
+
+        const payload = {
+          action: 'submitRound',
+          token,
+          date: els.date.value,
+          course,
+          tees: document.getElementById('tees').value,
+          holesPlayed: els.holesPlayed.value,
+          isTournament: els.isTournament.checked,
+          notes: document.getElementById('notes').value
+        };
+
+        if (isSummaryMode()) {
+          if (!els.summaryScore.value) throw new Error('Total score is required.');
+          if (!els.summaryPar.value) throw new Error('Total par is required.');
+          Object.assign(payload, {
+            entryMode: 'summary',
+            summaryHoles: holeRangeFor(els.holesPlayed.value).length,
+            summaryScore: els.summaryScore.value,
+            summaryPar: els.summaryPar.value,
+            summaryPutts: els.summaryPutts.value,
+            summaryGIR: els.summaryGIR.value,
+            summaryFairwaysHit: els.summaryFairwaysHit.value,
+            summaryFairwaysAttempted: els.summaryFairwaysAttempted.value,
+            summaryPenalties: els.summaryPenalties.value
+          });
+        } else {
+          const holes = HoleTable.collect(els.holeRows);
+          for (const h of holes) {
+            if (!h.par || !h.score) throw new Error(`Hole ${h.hole} needs a par and a score.`);
+          }
+          payload.holes = holes;
+        }
+
+        await Api.post(payload);
       });
+
       els.formMessage.innerHTML = '<div class="success">Round submitted. Nice work!</div>';
       els.form.reset();
       els.date.value = new Date().toISOString().slice(0, 10);
       syncCourseOtherVisibility();
       renderHoleRows();
+      syncEntryModeVisibility();
       playerData = await Api.get({ action: 'getPlayer', token });
       renderStatTiles(playerData.rounds, playerData.holeScores);
       renderRecentRounds(playerData.rounds, playerData.holeScores);
     } catch (err) {
       els.formMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    } finally {
-      els.submitBtn.disabled = false;
-      els.submitBtn.textContent = 'Submit Round';
     }
   });
 

@@ -143,24 +143,64 @@
           This was a tournament round (counts double toward scoring average)
         </label>
 
-        <div class="table-scroll">
-          <table class="hole-table">
-            <thead>
-              <tr>
-                <th>Hole</th>
-                <th>Par</th>
-                <th>Score</th>
-                <th>Fairway</th>
-                <th>GIR</th>
-                <th>Putts</th>
-                <th>Penalty</th>
-              </tr>
-            </thead>
-            <tbody id="editHoleRows"></tbody>
-          </table>
+        <div class="entry-mode-row">
+          <label><input type="radio" name="editEntryMode" value="holes" id="editEntryModeHoles" checked> Hole-by-hole</label>
+          <label><input type="radio" name="editEntryMode" value="summary" id="editEntryModeSummary"> Just the totals</label>
         </div>
 
-        <p><strong>Total: <span id="editRunningTotal">0</span></strong></p>
+        <div id="editHoleByHoleSection">
+          <div class="table-scroll">
+            <table class="hole-table">
+              <thead>
+                <tr>
+                  <th>Hole</th>
+                  <th>Par</th>
+                  <th>Score</th>
+                  <th>Fairway</th>
+                  <th>GIR</th>
+                  <th>Putts</th>
+                  <th>Penalty</th>
+                </tr>
+              </thead>
+              <tbody id="editHoleRows"></tbody>
+            </table>
+          </div>
+          <p><strong>Total: <span id="editRunningTotal">0</span></strong></p>
+        </div>
+
+        <div id="editSummarySection" class="hidden">
+          <div class="summary-grid">
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryScore">Total Score</label>
+              <input type="number" id="editSummaryScore" min="1" max="200">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryPar">Total Par</label>
+              <input type="number" id="editSummaryPar" min="1" max="100">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryPutts">Total Putts</label>
+              <input type="number" id="editSummaryPutts" min="0" max="200">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryGIR">Greens in Regulation</label>
+              <input type="number" id="editSummaryGIR" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryFairwaysHit">Fairways Hit</label>
+              <input type="number" id="editSummaryFairwaysHit" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryFairwaysAttempted">Fairways Attempted</label>
+              <input type="number" id="editSummaryFairwaysAttempted" min="0" max="18">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="editSummaryPenalties">Penalty Strokes</label>
+              <input type="number" id="editSummaryPenalties" min="0" max="50">
+            </div>
+          </div>
+          <p class="muted">Fairways/GIR/putts/penalties are optional — leave any blank if not tracked; they just won't count toward those stats for this round.</p>
+        </div>
 
         <div class="field">
           <label for="editNotes">Notes (optional)</label>
@@ -178,6 +218,7 @@
 <script src="assets/js/stats.js"></script>
 <script src="assets/js/courses.js"></script>
 <script src="assets/js/holeTable.js"></script>
+<script src="assets/js/ui.js"></script>
 <script src="assets/js/admin.js"></script>
 </body>
 </html>

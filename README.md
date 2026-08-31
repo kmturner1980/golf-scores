@@ -83,11 +83,13 @@ you also create a new deployment version. If you're not sure whether
 you're on the latest code, just redo it: copy every file under
 `apps-script/` into the Apps Script editor and create a new version.
 
-Two one-time migrations, run from the Apps Script editor's function
+Three one-time migrations, run from the Apps Script editor's function
 dropdown (same way you ran `initializeSheets`) if your sheet predates them
-— both are safe to run more than once:
+— all are safe to run more than once:
 - `migrateAddSexColumn` — adds the `Sex` column to Players.
 - `migrateAddTournamentColumn` — adds the `IsTournament` column to Rounds.
+- `migrateAddSummaryColumns` — adds the columns "just the totals" round
+  entry needs to Rounds.
 
 ### 4. Point the frontend at your API
 
@@ -142,9 +144,15 @@ listed" option) leave Par editable, defaulting to 4. Edit this file to add,
 remove, correct, or reorder courses — and to add `pars` for any course you
 want locked once you've confirmed its scorecard.
 
-The admin dashboard's round editor never locks Par, even for a course with
-verified pars, so a coach can always correct a bad entry regardless of what
-the player picked.
+The admin dashboard's round editor never locks Par, but picking a course
+there still fills in that course's real pars for you (leaving them
+editable) — it just updates the Par column in place, so anything already
+typed in Score/Putts/etc. is left alone.
+
+Par 3s never have a fairway to hit: the Fairway Hit/Miss control is hidden
+entirely (not just grayed out) for any hole marked par 3, on both the entry
+form and the admin editor, and those holes are excluded from the Fairway %
+calculation.
 
 ## Data tracked per round
 
@@ -154,6 +162,20 @@ regulation, putts, and penalty strokes.
 From that, the app computes (per player and for the whole team): scoring
 average, fairway %, GIR %, putting average, and counts of eagles, birdies,
 pars, bogeys, double bogeys, and worse-than-double.
+
+### Entering just the totals instead of hole-by-hole
+
+Both the player entry form and the admin round editor have a toggle: "Hole
+by hole" (the default) or "Just the totals." Totals mode asks for the round
+total score and par (required) plus optional fairways hit/attempted, GIR,
+putts, and penalty strokes — no 18-row table. It's meant for a round played
+without detailed tracking, or entered well after the fact.
+
+The tradeoff: a totals-only round can't contribute to the eagle/birdie/
+par/bogey/double/worse breakdown (there's no hole-by-hole detail to
+classify), but it counts normally toward scoring average, fairway %, GIR %,
+putting average, and penalties. These rounds show a "Totals" badge
+alongside their date wherever rounds are listed.
 
 Each player also has a Sex (Boy or Girl), set when they're added and
 editable afterward from their detail view in the admin dashboard.
@@ -197,6 +219,11 @@ enter a brand-new round on that player's behalf using the same hole-by-hole
 editor as the player's own entry form. Per existing round, you can Edit
 (same editor, prefilled with that round's data, with Par always editable)
 or Delete.
+
+Every action that talks to the backend (submitting a round, logging in,
+adding/deleting a player, saving/deleting a round) shows a spinner on its
+button and disables it until the request finishes — `UI.withBusy` in
+`assets/js/ui.js` is the shared helper behind all of them.
 
 ## Local development
 

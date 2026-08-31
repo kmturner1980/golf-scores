@@ -15,7 +15,9 @@ function initializeSheets() {
 
   var rounds = ss.getSheetByName(SHEET_ROUNDS) || ss.insertSheet(SHEET_ROUNDS);
   if (rounds.getLastRow() === 0) {
-    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'HolesPlayed', 'IsTournament', 'Notes', 'SubmittedAt']);
+    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'HolesPlayed', 'IsTournament',
+      'EntryMode', 'SummaryPar', 'SummaryScore', 'SummaryFairwaysHit', 'SummaryFairwaysAttempted',
+      'SummaryGIR', 'SummaryPutts', 'SummaryPenalties', 'Notes', 'SubmittedAt']);
   }
 
   var holeScores = ss.getSheetByName(SHEET_HOLE_SCORES) || ss.insertSheet(SHEET_HOLE_SCORES);
@@ -67,6 +69,29 @@ function migrateAddTournamentColumn() {
   sheet.insertColumnAfter(holesCol);
   sheet.getRange(1, holesCol + 1).setValue('IsTournament');
   Logger.log('Added IsTournament column to Rounds sheet.');
+}
+
+/**
+ * Run this once if your Rounds sheet was created before "summary-only"
+ * round entry existed (totals instead of hole-by-hole). Safe to run more
+ * than once. Existing rounds are unaffected -- they stay hole-by-hole.
+ */
+function migrateAddSummaryColumns() {
+  var sheet = getSheet_(SHEET_ROUNDS);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var newCols = ['EntryMode', 'SummaryPar', 'SummaryScore', 'SummaryFairwaysHit',
+    'SummaryFairwaysAttempted', 'SummaryGIR', 'SummaryPutts', 'SummaryPenalties'];
+  var missing = newCols.filter(function (c) { return headers.indexOf(c) === -1; });
+  if (!missing.length) {
+    Logger.log('Summary columns already exist -- nothing to do.');
+    return;
+  }
+  var afterCol = headers.indexOf('IsTournament') + 1 || headers.indexOf('HolesPlayed') + 1;
+  missing.forEach(function (name, i) {
+    sheet.insertColumnAfter(afterCol + i);
+    sheet.getRange(1, afterCol + i + 1).setValue(name);
+  });
+  Logger.log('Added summary columns to Rounds sheet: ' + missing.join(', '));
 }
 
 /**

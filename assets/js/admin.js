@@ -9,6 +9,7 @@
     teamTiles: document.getElementById('teamTiles'),
     addPlayerForm: document.getElementById('addPlayerForm'),
     addPlayerMessage: document.getElementById('addPlayerMessage'),
+    addPlayerBtn: document.querySelector('#addPlayerForm button[type="submit"]'),
     newPlayerName: document.getElementById('newPlayerName'),
     newPlayerSex: document.getElementById('newPlayerSex'),
     newLinkBox: document.getElementById('newLinkBox'),
@@ -46,7 +47,18 @@
     editHoleRows: document.getElementById('editHoleRows'),
     editRunningTotal: document.getElementById('editRunningTotal'),
     editSaveBtn: document.getElementById('editSaveBtn'),
-    editCancelBtn: document.getElementById('editCancelBtn')
+    editCancelBtn: document.getElementById('editCancelBtn'),
+    editEntryModeHoles: document.getElementById('editEntryModeHoles'),
+    editEntryModeSummary: document.getElementById('editEntryModeSummary'),
+    editHoleByHoleSection: document.getElementById('editHoleByHoleSection'),
+    editSummarySection: document.getElementById('editSummarySection'),
+    editSummaryScore: document.getElementById('editSummaryScore'),
+    editSummaryPar: document.getElementById('editSummaryPar'),
+    editSummaryPutts: document.getElementById('editSummaryPutts'),
+    editSummaryGIR: document.getElementById('editSummaryGIR'),
+    editSummaryFairwaysHit: document.getElementById('editSummaryFairwaysHit'),
+    editSummaryFairwaysAttempted: document.getElementById('editSummaryFairwaysAttempted'),
+    editSummaryPenalties: document.getElementById('editSummaryPenalties')
   };
 
   let currentPlayerToken = null;
@@ -77,6 +89,13 @@
     }
   }
 
+  // The matching IDAHO_COURSES entry for the current edit-form selection, or
+  // null if "Other" is selected or the course has no verified par data.
+  function editSelectedCourseData() {
+    if (els.editCourseSelect.value === OTHER_COURSE_VALUE) return null;
+    return IDAHO_COURSES.find((c) => c.name === els.editCourseSelect.value) || null;
+  }
+
   function escapeHtml(s) {
     return (s || '').toString().replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -89,6 +108,16 @@
     if (!m) return d;
     const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
     return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // Google Sheets often round-trips a "Date" column as a real Date object,
+  // which comes back from the API as a full ISO datetime string
+  // ("2026-08-20T06:00:00.000Z") rather than the plain "YYYY-MM-DD" a
+  // native <input type="date"> requires -- assigning the full string just
+  // silently empties the field. Always go through this before setting one.
+  function toDateInputValue(d) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+    return m ? m[0] : '';
   }
 
   async function login(password) {
@@ -108,8 +137,9 @@
   }
 
   function renderTeamTiles() {
-    let agg = Stats.withRates(Stats.aggregateHoles(data.holeScores));
-    agg = Stats.applyTournamentWeighting(agg, data.rounds, Stats.groupBy(data.holeScores, 'RoundID'));
+    const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
+    let agg = Stats.withRates(Stats.aggregateRounds(data.rounds, holesByRound));
+    agg = Stats.applyTournamentWeighting(agg, data.rounds, holesByRound);
     statTiles(els.teamTiles, [
       ['Players', data.players.length],
       ['Rounds Logged', data.rounds.length],
@@ -189,8 +219,7 @@
 
     const rows = data.players.map((p) => {
       const rounds = roundsByPlayer[p.Token] || [];
-      const holes = rounds.flatMap((r) => holesByRound[r.RoundID] || []);
-      let agg = Stats.withRates(Stats.aggregateHoles(holes));
+      let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
       agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
       return { player: p, rounds, agg };
     });
@@ -230,8 +259,7 @@
     const rounds = (Stats.groupBy(data.rounds, 'PlayerToken')[token] || [])
       .sort((a, b) => new Date(b.Date) - new Date(a.Date));
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
-    const allHoles = rounds.flatMap((r) => holesByRound[r.RoundID] || []);
-    let agg = Stats.withRates(Stats.aggregateHoles(allHoles));
+    let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
     agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
 
     els.playerDetailName.textContent = player.Name;
@@ -268,22 +296,26 @@
         <thead><tr><th>Date</th><th>Course</th><th>Tees</th><th>Holes</th><th>Score</th><th>Putts</th><th colspan="2"></th></tr></thead>
         <tbody>${rounds.map((r) => {
           const holes = holesByRound[r.RoundID] || [];
-          const total = Stats.roundTotal(holes);
-          const putts = holes.reduce((s, h) => s + (Number(h.Putts) || 0), 0);
+          const { score } = Stats.roundScoreAndPar(r, holes);
+          const putts = Stats.roundPutts(r, holes);
+          const badges = [
+            Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
+            Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
+          ].filter(Boolean).join(' ');
           return `<tr>
-            <td>${formatDate(r.Date)}${Stats.isTournamentRound(r) ? ' <span class="pill">Tournament</span>' : ''}</td>
+            <td>${formatDate(r.Date)} ${badges}</td>
             <td>${escapeHtml(r.Course)}</td>
             <td>${escapeHtml(r.Tees)}</td>
             <td>${r.HolesPlayed}</td>
-            <td>${total}</td>
-            <td>${putts}</td>
+            <td>${score == null ? '—' : score}</td>
+            <td>${putts == null ? '—' : putts}</td>
             <td><button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button></td>
             <td><button type="button" class="danger delete-round" data-round="${escapeHtml(r.RoundID)}">Delete</button></td>
           </tr>`;
         }).join('')}</tbody>
       </table>`;
       els.playerDetailRounds.querySelectorAll('.delete-round').forEach((btn) => {
-        btn.addEventListener('click', () => deleteRound(btn.dataset.round));
+        btn.addEventListener('click', () => deleteRound(btn.dataset.round, btn));
       });
       els.playerDetailRounds.querySelectorAll('.edit-round').forEach((btn) => {
         btn.addEventListener('click', () => openEditRound(btn.dataset.round));
@@ -295,10 +327,10 @@
     els.playerDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  async function deleteRound(roundId) {
+  async function deleteRound(roundId, btn) {
     if (!confirm('Delete this round? This cannot be undone.')) return;
     try {
-      await Api.post({ action: 'deleteRound', session, roundId });
+      await UI.withBusy(btn, 'Deleting…', () => Api.post({ action: 'deleteRound', session, roundId }));
       await refresh();
       if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
     } catch (err) {
@@ -317,6 +349,37 @@
     return out;
   }
 
+  function isEditSummaryMode() {
+    return els.editEntryModeSummary.checked;
+  }
+
+  function syncEditEntryModeVisibility() {
+    const summary = isEditSummaryMode();
+    els.editHoleByHoleSection.classList.toggle('hidden', summary);
+    els.editSummarySection.classList.toggle('hidden', !summary);
+    // A required field inside a hidden section still blocks native form
+    // submission, so the Score inputs must stop being required while
+    // they're hidden.
+    els.editHoleRows.querySelectorAll('.score').forEach((input) => { input.required = !summary; });
+    if (summary) suggestEditSummaryPar();
+  }
+
+  // Convenience default (still editable): if the selected course has
+  // verified pars, sum the par for the selected holes range.
+  function suggestEditSummaryPar() {
+    const courseData = editSelectedCourseData();
+    if (!courseData || !courseData.pars || els.editSummaryPar.value) return;
+    const holes = holeRangeFor(els.editHolesPlayed.value);
+    const total = holes.reduce((sum, h) => sum + (courseData.pars[h - 1] || 0), 0);
+    if (total) els.editSummaryPar.value = total;
+  }
+
+  function clearEditSummaryFields() {
+    [els.editSummaryScore, els.editSummaryPar, els.editSummaryPutts, els.editSummaryGIR,
+      els.editSummaryFairwaysHit, els.editSummaryFairwaysAttempted, els.editSummaryPenalties]
+      .forEach((el) => { el.value = ''; });
+  }
+
   function openEditRound(roundId) {
     const round = data.rounds.find((r) => r.RoundID === roundId);
     if (!round) return;
@@ -325,7 +388,7 @@
     els.editSaveBtn.textContent = 'Save Changes';
 
     els.editRoundMessage.innerHTML = '';
-    els.editDate.value = round.Date;
+    els.editDate.value = toDateInputValue(round.Date);
     els.editHolesPlayed.value = round.HolesPlayed;
     els.editTees.value = round.Tees || '';
     els.editIsTournament.checked = Stats.isTournamentRound(round);
@@ -336,6 +399,20 @@
     els.editCourseOtherRow.classList.toggle('hidden', !isOther);
     els.editCourseOther.value = isOther ? round.Course : '';
     els.editCourseOtherCity.value = '';
+
+    const summary = Stats.isSummaryRound(round);
+    els.editEntryModeHoles.checked = !summary;
+    els.editEntryModeSummary.checked = summary;
+    clearEditSummaryFields();
+    if (summary) {
+      els.editSummaryScore.value = round.SummaryScore;
+      els.editSummaryPar.value = round.SummaryPar;
+      els.editSummaryPutts.value = round.SummaryPutts;
+      els.editSummaryGIR.value = round.SummaryGIR;
+      els.editSummaryFairwaysHit.value = round.SummaryFairwaysHit;
+      els.editSummaryFairwaysAttempted.value = round.SummaryFairwaysAttempted;
+      els.editSummaryPenalties.value = round.SummaryPenalties;
+    }
 
     const existing = {};
     (Stats.groupBy(data.holeScores, 'RoundID')[roundId] || []).forEach((h) => {
@@ -352,6 +429,9 @@
     // coach can fix a wrong par even on a "known" course.
     HoleTable.render(els.editHoleRows, holeRangeFor(round.HolesPlayed), null, existing);
     HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+    // Must run after the render above -- it toggles `required` on the Score
+    // inputs the render just (re)created.
+    syncEditEntryModeVisibility();
 
     els.editRoundCard.classList.remove('hidden');
     els.editRoundCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -369,6 +449,9 @@
     els.editTees.value = '';
     els.editIsTournament.checked = false;
     els.editNotes.value = '';
+    els.editEntryModeHoles.checked = true;
+    els.editEntryModeSummary.checked = false;
+    clearEditSummaryFields();
 
     populateCourseSelect(els.editCourseSelect);
     els.editCourseOtherRow.classList.toggle('hidden', els.editCourseSelect.value !== OTHER_COURSE_VALUE);
@@ -377,6 +460,9 @@
 
     HoleTable.render(els.editHoleRows, holeRangeFor('18'), null, {});
     HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+    // Must run after the render above -- it toggles `required` on the Score
+    // inputs the render just (re)created.
+    syncEditEntryModeVisibility();
 
     els.editRoundCard.classList.remove('hidden');
     els.editRoundCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -397,7 +483,8 @@
     const name = player ? player.Name : 'this player';
     if (!confirm(`Delete ${name}? This permanently deletes every round and score they've entered. This cannot be undone.`)) return;
     try {
-      await Api.post({ action: 'deletePlayer', session, token: currentPlayerToken });
+      await UI.withBusy(els.deletePlayerBtn, 'Deleting…', () =>
+        Api.post({ action: 'deletePlayer', session, token: currentPlayerToken }));
       currentPlayerToken = null;
       await refresh();
     } catch (err) {
@@ -422,16 +509,11 @@
   els.loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.loginMessage.innerHTML = '';
-    els.loginBtn.disabled = true;
-    els.loginBtn.textContent = 'Logging in…';
     try {
-      await login(els.password.value);
+      await UI.withBusy(els.loginBtn, 'Logging in…', () => login(els.password.value));
       await showDashboard();
     } catch (err) {
       els.loginMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    } finally {
-      els.loginBtn.disabled = false;
-      els.loginBtn.textContent = 'Log In';
     }
   });
 
@@ -440,7 +522,8 @@
     els.addPlayerMessage.innerHTML = '';
     els.newLinkBox.classList.add('hidden');
     try {
-      const result = await Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value, sex: els.newPlayerSex.value });
+      const result = await UI.withBusy(els.addPlayerBtn, 'Adding…', () =>
+        Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value, sex: els.newPlayerSex.value }));
       els.addPlayerMessage.innerHTML = `<div class="success">Added ${escapeHtml(els.newPlayerName.value)}.</div>`;
       els.newLinkInput.value = playerLink(result.Token);
       els.newLinkBox.classList.remove('hidden');
@@ -471,7 +554,8 @@
 
   els.saveSexBtn.addEventListener('click', async () => {
     try {
-      await Api.post({ action: 'updatePlayer', session, token: currentPlayerToken, sex: els.playerDetailSexSelect.value });
+      await UI.withBusy(els.saveSexBtn, 'Saving…', () =>
+        Api.post({ action: 'updatePlayer', session, token: currentPlayerToken, sex: els.playerDetailSexSelect.value }));
       await refresh();
       if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
     } catch (err) {
@@ -481,16 +565,25 @@
 
   els.editCourseSelect.addEventListener('change', () => {
     els.editCourseOtherRow.classList.toggle('hidden', els.editCourseSelect.value !== OTHER_COURSE_VALUE);
+    // Par stays editable here (unlike the player form) -- this only fills
+    // in the values, it never locks the inputs.
+    HoleTable.applyCoursePars(els.editHoleRows, editSelectedCourseData());
+    if (isEditSummaryMode()) suggestEditSummaryPar();
   });
 
   els.editHolesPlayed.addEventListener('change', () => {
     HoleTable.render(els.editHoleRows, holeRangeFor(els.editHolesPlayed.value), null, {});
+    HoleTable.applyCoursePars(els.editHoleRows, editSelectedCourseData());
     HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
+    syncEditEntryModeVisibility();
   });
 
   els.editHoleRows.addEventListener('input', (e) => {
     if (e.target.classList.contains('score')) HoleTable.updateRunningTotal(els.editHoleRows, els.editRunningTotal);
   });
+
+  els.editEntryModeHoles.addEventListener('change', syncEditEntryModeVisibility);
+  els.editEntryModeSummary.addEventListener('change', syncEditEntryModeVisibility);
 
   els.editCancelBtn.addEventListener('click', () => {
     editingRoundId = null;
@@ -503,38 +596,55 @@
     e.preventDefault();
     els.editRoundMessage.innerHTML = '';
     const isAdding = editingRoundId == null;
-    els.editSaveBtn.disabled = true;
-    els.editSaveBtn.textContent = isAdding ? 'Adding…' : 'Saving…';
     try {
-      const course = editedCourseName();
-      if (!course) throw new Error('Course is required.');
-      const holes = HoleTable.collect(els.editHoleRows);
-      for (const h of holes) {
-        if (!h.par || !h.score) throw new Error(`Hole ${h.hole} needs a par and a score.`);
-      }
-      const payload = {
-        date: els.editDate.value,
-        course,
-        tees: els.editTees.value,
-        holesPlayed: els.editHolesPlayed.value,
-        isTournament: els.editIsTournament.checked,
-        notes: els.editNotes.value,
-        holes
-      };
-      if (isAdding) {
-        await Api.post(Object.assign({ action: 'submitRound', token: currentPlayerToken }, payload));
-      } else {
-        await Api.post(Object.assign({ action: 'updateRound', session, roundId: editingRoundId }, payload));
-      }
+      await UI.withBusy(els.editSaveBtn, isAdding ? 'Adding…' : 'Saving…', async () => {
+        const course = editedCourseName();
+        if (!course) throw new Error('Course is required.');
+
+        const payload = {
+          date: els.editDate.value,
+          course,
+          tees: els.editTees.value,
+          holesPlayed: els.editHolesPlayed.value,
+          isTournament: els.editIsTournament.checked,
+          notes: els.editNotes.value
+        };
+
+        if (isEditSummaryMode()) {
+          if (!els.editSummaryScore.value) throw new Error('Total score is required.');
+          if (!els.editSummaryPar.value) throw new Error('Total par is required.');
+          Object.assign(payload, {
+            entryMode: 'summary',
+            summaryHoles: holeRangeFor(els.editHolesPlayed.value).length,
+            summaryScore: els.editSummaryScore.value,
+            summaryPar: els.editSummaryPar.value,
+            summaryPutts: els.editSummaryPutts.value,
+            summaryGIR: els.editSummaryGIR.value,
+            summaryFairwaysHit: els.editSummaryFairwaysHit.value,
+            summaryFairwaysAttempted: els.editSummaryFairwaysAttempted.value,
+            summaryPenalties: els.editSummaryPenalties.value
+          });
+        } else {
+          const holes = HoleTable.collect(els.editHoleRows);
+          for (const h of holes) {
+            if (!h.par || !h.score) throw new Error(`Hole ${h.hole} needs a par and a score.`);
+          }
+          payload.holes = holes;
+        }
+
+        if (isAdding) {
+          await Api.post(Object.assign({ action: 'submitRound', token: currentPlayerToken }, payload));
+        } else {
+          await Api.post(Object.assign({ action: 'updateRound', session, roundId: editingRoundId }, payload));
+        }
+      });
+
       editingRoundId = null;
       els.editRoundCard.classList.add('hidden');
       await refresh();
       if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
     } catch (err) {
       els.editRoundMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    } finally {
-      els.editSaveBtn.disabled = false;
-      els.editSaveBtn.textContent = isAdding ? 'Add Round' : 'Save Changes';
     }
   });
 
