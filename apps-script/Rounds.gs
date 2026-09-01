@@ -159,7 +159,8 @@ function getAllData_() {
     players: sheetToObjects_(SHEET_PLAYERS),
     rounds: sheetToObjects_(SHEET_ROUNDS),
     holeScores: sheetToObjects_(SHEET_HOLE_SCORES),
-    years: listYears_()
+    years: listYears_(),
+    playerYears: listPlayerYears_()
   };
 }
 

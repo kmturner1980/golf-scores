@@ -20,6 +20,9 @@
     newLinkBox: document.getElementById('newLinkBox'),
     newLinkInput: document.getElementById('newLinkInput'),
     copyLinkBtn: document.getElementById('copyLinkBtn'),
+    addExistingMessage: document.getElementById('addExistingMessage'),
+    addExistingSelect: document.getElementById('addExistingSelect'),
+    addExistingBtn: document.getElementById('addExistingBtn'),
     rosterTable: document.getElementById('rosterTable'),
     playerDetail: document.getElementById('playerDetail'),
     playerDetailName: document.getElementById('playerDetailName'),
@@ -27,6 +30,7 @@
     copyDetailLinkBtn: document.getElementById('copyDetailLinkBtn'),
     playerDetailTiles: document.getElementById('playerDetailTiles'),
     playerDetailRounds: document.getElementById('playerDetailRounds'),
+    removeFromYearBtn: document.getElementById('removeFromYearBtn'),
     deletePlayerBtn: document.getElementById('deletePlayerBtn'),
     playerDetailSexPill: document.getElementById('playerDetailSexPill'),
     playerDetailSexSelect: document.getElementById('playerDetailSexSelect'),
@@ -91,13 +95,39 @@
   let selectedYearId = null;
 
   let session = sessionStorage.getItem('adminSession') || null;
-  let data = { players: [], rounds: [], holeScores: [], years: [] };
+  let data = { players: [], rounds: [], holeScores: [], years: [], playerYears: [] };
 
   // Rounds belonging to whichever year is currently selected in the Season
   // picker -- everything the dashboard shows (Team Totals, Roster, player
   // detail) is scoped to this, not the full all-years dataset in `data`.
   function yearRounds() {
     return data.rounds.filter((r) => r.Year === selectedYearId);
+  }
+
+  // Which players are actually rostered for a given year -- a player who
+  // exists globally (e.g. a graduated senior, or someone who sat out a
+  // season) doesn't show up at all for a year they're not rostered for,
+  // regardless of their Active/Inactive flag.
+  function rosterTokensForYear(yearId) {
+    return new Set(data.playerYears.filter((py) => py.YearID === yearId).map((py) => py.PlayerToken));
+  }
+
+  function rosterPlayersForYear(yearId) {
+    const tokens = rosterTokensForYear(yearId);
+    return data.players.filter((p) => tokens.has(p.Token));
+  }
+
+  // Populates the "Add Existing Player to This Season" dropdown with
+  // players who exist globally but aren't rostered for the currently
+  // selected year.
+  function populateAddExistingSelect() {
+    const tokens = rosterTokensForYear(selectedYearId);
+    const notInYear = data.players.filter((p) => !tokens.has(p.Token))
+      .sort((a, b) => a.Name.localeCompare(b.Name));
+    els.addExistingBtn.disabled = !notInYear.length;
+    els.addExistingSelect.innerHTML = notInYear.length
+      ? notInYear.map((p) => `<option value="${escapeHtml(p.Token)}">${escapeHtml(p.Name)}</option>`).join('')
+      : '<option value="">All players are already rostered for this season</option>';
   }
 
   function isCurrentYearRow(y) {
@@ -238,15 +268,16 @@
   function renderTeamTiles() {
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     const roundsByPlayer = Stats.groupBy(yearRounds(), 'PlayerToken');
+    const rosterPlayers = rosterPlayersForYear(selectedYearId);
 
     const groups = [
-      { title: 'Boys', players: data.players.filter((p) => p.Sex === 'Boy') },
-      { title: 'Girls', players: data.players.filter((p) => p.Sex === 'Girl') },
-      { title: 'Sex Not Set', players: data.players.filter((p) => p.Sex !== 'Boy' && p.Sex !== 'Girl') }
+      { title: 'Boys', players: rosterPlayers.filter((p) => p.Sex === 'Boy') },
+      { title: 'Girls', players: rosterPlayers.filter((p) => p.Sex === 'Girl') },
+      { title: 'Sex Not Set', players: rosterPlayers.filter((p) => p.Sex !== 'Boy' && p.Sex !== 'Girl') }
     ].filter((g) => g.players.length);
 
     if (!groups.length) {
-      els.teamTiles.innerHTML = '<p class="muted">No players yet — add one below.</p>';
+      els.teamTiles.innerHTML = '<p class="muted">No players rostered for this season yet.</p>';
       return;
     }
 
@@ -331,13 +362,14 @@
   function renderRoster() {
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     const roundsByPlayer = Stats.groupBy(yearRounds(), 'PlayerToken');
+    const rosterPlayers = rosterPlayersForYear(selectedYearId);
 
-    if (!data.players.length) {
-      els.rosterTable.innerHTML = '<p class="muted">No players yet — add one above.</p>';
+    if (!rosterPlayers.length) {
+      els.rosterTable.innerHTML = '<p class="muted">No players rostered for this season yet — add one above, or add an existing player to this season.</p>';
       return;
     }
 
-    const rows = data.players.map((p) => {
+    const rows = rosterPlayers.map((p) => {
       const rounds = roundsByPlayer[p.Token] || [];
       let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
       agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
@@ -654,6 +686,7 @@
     populateYearSelect();
     renderTeamTiles();
     renderRoster();
+    populateAddExistingSelect();
     els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.add('hidden');
   }
@@ -681,7 +714,7 @@
     els.newLinkBox.classList.add('hidden');
     try {
       const result = await UI.withBusy(els.addPlayerBtn, 'Adding…', () =>
-        Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value, sex: els.newPlayerSex.value }));
+        Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value, sex: els.newPlayerSex.value, yearId: selectedYearId }));
       els.addPlayerMessage.innerHTML = `<div class="success">Added ${escapeHtml(els.newPlayerName.value)}.</div>`;
       els.newLinkInput.value = playerLink(result.Token);
       els.newLinkBox.classList.remove('hidden');
@@ -692,11 +725,41 @@
     }
   });
 
+  els.addExistingBtn.addEventListener('click', async () => {
+    els.addExistingMessage.innerHTML = '';
+    const token = els.addExistingSelect.value;
+    if (!token) return;
+    try {
+      await UI.withBusy(els.addExistingBtn, 'Adding…', () =>
+        Api.post({ action: 'addPlayerToYear', session, token, yearId: selectedYearId }));
+      await refresh();
+    } catch (err) {
+      els.addExistingMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  els.removeFromYearBtn.addEventListener('click', async () => {
+    if (!currentPlayerToken) return;
+    const player = data.players.find((p) => p.Token === currentPlayerToken);
+    const yearLabel = (data.years.find((y) => y.YearID === selectedYearId) || {}).Label || 'this season';
+    const name = player ? player.Name : 'this player';
+    if (!confirm(`Remove ${name} from ${yearLabel}? Their rounds and history are kept -- they just won't show up for this season anymore. You can re-add them later.`)) return;
+    try {
+      await UI.withBusy(els.removeFromYearBtn, 'Removing…', () =>
+        Api.post({ action: 'removePlayerFromYear', session, token: currentPlayerToken, yearId: selectedYearId }));
+      currentPlayerToken = null;
+      await refresh();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
   els.yearSelect.addEventListener('change', () => {
     selectedYearId = els.yearSelect.value;
     syncSetCurrentYearBtn();
     renderTeamTiles();
     renderRoster();
+    populateAddExistingSelect();
     els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.add('hidden');
   });

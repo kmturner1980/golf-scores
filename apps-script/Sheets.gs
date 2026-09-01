@@ -7,6 +7,7 @@ var SHEET_PLAYERS = 'Players';
 var SHEET_ROUNDS = 'Rounds';
 var SHEET_HOLE_SCORES = 'HoleScores';
 var SHEET_YEARS = 'Years';
+var SHEET_PLAYER_YEARS = 'PlayerYears';
 
 function getSheet_(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();

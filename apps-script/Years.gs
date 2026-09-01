@@ -37,7 +37,12 @@ function setAllYearsNotCurrent_() {
   }
 }
 
-/** Admin-only: creates a new year and makes it the current one. */
+/**
+ * Admin-only: creates a new year, makes it the current one, and carries
+ * forward the roster from whatever was current before (so returning
+ * players don't have to be re-added every season -- the admin removes the
+ * exceptions, e.g. a graduated senior, from the admin dashboard instead).
+ */
 function createYear_(label) {
   label = (label || '').toString().trim();
   if (!label) throw new Error('Year label is required.');
@@ -45,6 +50,8 @@ function createYear_(label) {
   if (existing.some(function (y) { return y.Label === label; })) {
     throw new Error('A year called "' + label + '" already exists.');
   }
+
+  var previousCurrent = existing.filter(isCurrentYearRow_)[0];
 
   setAllYearsNotCurrent_();
   var yearId = Utilities.getUuid();
@@ -54,6 +61,9 @@ function createYear_(label) {
     IsCurrent: true,
     CreatedAt: new Date()
   });
+
+  if (previousCurrent) copyPlayerYearRoster_(previousCurrent.YearID, yearId);
+
   return { yearId: yearId, label: label };
 }
 

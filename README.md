@@ -44,8 +44,8 @@ when you've done that. This is almost always the fix for this exact error.
 3. Delete the default `Code.gs` content, then re-create the files from this
    repo's `apps-script/` folder inside the Apps Script editor, one at a
    time: for each of `Code.gs`, `Sheets.gs`, `Setup.gs`, `Players.gs`,
-   `Rounds.gs`, `Years.gs`, `Admin.gs`, create a matching script file (⊕ next
-   to "Files") and paste in the contents.
+   `Rounds.gs`, `Years.gs`, `PlayerYears.gs`, `Admin.gs`, create a matching
+   script file (⊕ next to "Files") and paste in the contents.
 4. Open **Project Settings** (gear icon) → check "Show `appsscript.json`
    manifest file in editor", then open that file in the editor and replace
    its contents with `apps-script/appsscript.json` from this repo.
@@ -55,9 +55,9 @@ when you've done that. This is almost always the fix for this exact error.
 1. Back in the Apps Script editor, open `Setup.gs`.
 2. In the function dropdown at the top, select `initializeSheets`, then
    click **Run**. The first run will prompt you to authorize the script —
-   accept it. This creates the `Players`, `Rounds`, `HoleScores`, and
-   `Years` tabs (with one starter season already created and marked
-   current).
+   accept it. This creates the `Players`, `Rounds`, `HoleScores`, `Years`,
+   and `PlayerYears` tabs (with one starter season already created and
+   marked current).
 3. Temporarily edit the last line of `Setup.gs` area to call
    `setAdminPassword('YourPasswordHere')` — easiest way: select
    `setAdminPassword` in the function dropdown, and since Apps Script can't
@@ -85,7 +85,7 @@ you also create a new deployment version. If you're not sure whether
 you're on the latest code, just redo it: copy every file under
 `apps-script/` into the Apps Script editor and create a new version.
 
-Five one-time migrations, run from the Apps Script editor's function
+Six one-time migrations, run from the Apps Script editor's function
 dropdown (same way you ran `initializeSheets`) if your sheet predates them
 — all are safe to run more than once:
 - `migrateAddSexColumn` — adds the `Sex` column to Players.
@@ -99,6 +99,11 @@ dropdown (same way you ran `initializeSheets`) if your sheet predates them
   (marked current) if it doesn't exist, adds the `Year` column to Rounds,
   and backfills any of your existing rounds onto that starter season so
   they don't disappear from view once year filtering is live.
+- `migrateAddPlayerYears` — creates the `PlayerYears` tab (which players are
+  rostered for which season) if it doesn't exist, and — only the first time
+  — rosters every existing player onto every existing year, so nobody you
+  already had disappears. After that, manage who's on which season's roster
+  from the admin dashboard.
 
 ### 4. Point the frontend at your API
 
@@ -231,26 +236,37 @@ always sort to the bottom.
 
 ## Seasons ("Years")
 
-The whole admin dashboard — Team Totals, Roster stats, and each player's
-round history — is scoped to one season at a time via the **Season** card
-at the top. The player roster itself (names, links/tokens) is shared across
-every season; only rounds are tagged to one, so returning players never
-need a new link.
+The whole admin dashboard — Team Totals, Roster, and each player's round
+history — is scoped to one season at a time via the **Season** card at the
+top. A player's record (name, link/token, history) is never duplicated
+per season, but **which players show up for a given season is explicit** —
+a player only appears in a season's Roster/Team Totals if they're rostered
+for it. That's what makes "a graduated senior shouldn't show up next year"
+work: they just aren't carried into the new season, rather than being
+hidden by some Active/Inactive flag (Active/Inactive is unrelated to this —
+it's still just a status badge).
 
-- **Viewing Year** switches which season's rounds the rest of the dashboard
-  reflects. It doesn't change where new rounds go — that's controlled by
-  whichever season is marked "(Current)".
-- **Create New Season** adds a new one and immediately makes it current, so
-  players' own submissions (and admin's "Add Round") start going there.
-  Players never see a season picker — their own dashboard always shows just
-  the current season.
+- **Viewing Year** switches which season's roster and rounds the rest of
+  the dashboard reflects. It doesn't change where new rounds/players go —
+  that's controlled by whichever season is marked "(Current)".
+- **Create New Season** adds a new one, immediately makes it current, and
+  **carries forward the roster** from whatever was current before — every
+  player rostered for the old season is automatically rostered for the new
+  one too. From there, remove the exceptions (graduating seniors, players
+  who aren't returning) via **Remove from Season** on their player detail
+  page — it only unrosters them for that one season; their name, link, and
+  full history are untouched, and you can re-add them to a season later
+  from **Add Existing Player to This Season**.
 - **Make This the Current Season** lets you switch which season is current
   without creating a new one (e.g. to go back to backfilling last season).
+- **Add Player** rosters a brand-new player onto whichever season you're
+  currently viewing.
 - The admin round editor has its own **Season** field so you can add or
   move a specific round into a different season than whatever's currently
   selected — handy for correcting or backfilling historical data.
-- Deleting a player removes their rounds from every season, not just the
-  one you're viewing.
+- **Delete Player** is different from removing them from a season — it
+  permanently deletes the player and every round they've ever entered,
+  across every season. There's no undo.
 
 ## Tournament rounds count double toward scoring average
 

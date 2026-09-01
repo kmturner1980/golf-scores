@@ -38,11 +38,16 @@ function generateShortToken_() {
   throw new Error('Could not generate a unique player code -- please try again.');
 }
 
-/** Admin-only: adds a new player and returns their new row (including secret token). */
-function addPlayer_(name, sex) {
+/**
+ * Admin-only: adds a new player, rosters them onto `yearId` (required -- a
+ * player exists globally but only "shows up" for seasons they're rostered
+ * for), and returns their new row (including secret token).
+ */
+function addPlayer_(name, sex, yearId) {
   name = (name || '').toString().trim();
   if (!name) throw new Error('Player name is required.');
   sex = validateSex_(sex);
+  if (!yearId) throw new Error('yearId is required.');
 
   var token = generateShortToken_();
   var record = {
@@ -53,6 +58,7 @@ function addPlayer_(name, sex) {
     DateAdded: new Date()
   };
   appendObject_(SHEET_PLAYERS, record);
+  addPlayerToYear_(token, yearId);
   return record;
 }
 
@@ -102,5 +108,6 @@ function deletePlayer_(token) {
     deleteRowsWhere_(SHEET_HOLE_SCORES, 'RoundID', r.RoundID);
   });
   deleteRowsWhere_(SHEET_ROUNDS, 'PlayerToken', token);
+  deleteRowsWhere_(SHEET_PLAYER_YEARS, 'PlayerToken', token);
   deleteRowsWhere_(SHEET_PLAYERS, 'Token', token);
 }

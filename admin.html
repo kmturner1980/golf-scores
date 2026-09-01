@@ -86,6 +86,21 @@
     </div>
 
     <div class="card">
+      <h2>Add Existing Player to This Season</h2>
+      <p class="muted">For a returning player who isn't rostered for the year you're viewing (e.g. they were removed by mistake, or sat out a season).</p>
+      <div id="addExistingMessage"></div>
+      <div class="field-row" style="align-items:end">
+        <div class="field" style="margin-bottom:0">
+          <label for="addExistingSelect">Player</label>
+          <select id="addExistingSelect"></select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" id="addExistingBtn">Add to Season</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Roster</h2>
       <div id="rosterTable" class="table-scroll"></div>
     </div>
@@ -94,6 +109,7 @@
       <div class="field-row" style="align-items:start">
         <h2 id="playerDetailName" style="margin-bottom:0.5rem"></h2>
         <div style="text-align:right">
+          <button type="button" id="removeFromYearBtn" class="secondary">Remove from Season</button>
           <button type="button" id="deletePlayerBtn" class="danger">Delete Player</button>
         </div>
       </div>

@@ -33,6 +33,11 @@ function initializeSheets() {
     years.appendRow([Utilities.getUuid(), defaultYearLabel_(), true, new Date()]);
   }
 
+  var playerYears = ss.getSheetByName(SHEET_PLAYER_YEARS) || ss.insertSheet(SHEET_PLAYER_YEARS);
+  if (playerYears.getLastRow() === 0) {
+    playerYears.appendRow(['PlayerToken', 'YearID', 'AddedAt']);
+  }
+
   // Remove the default "Sheet1" if it's still there and empty.
   var sheet1 = ss.getSheetByName('Sheet1');
   if (sheet1 && sheet1.getLastRow() === 0) {
@@ -187,6 +192,39 @@ function migrateAddYears() {
     }
     if (backfilled) Logger.log('Backfilled ' + backfilled + ' existing round(s) onto the starter year.');
   }
+}
+
+/**
+ * Run this once if your spreadsheet was created before per-season rostering
+ * existed (players used to just show up in every year unconditionally).
+ * Creates the PlayerYears sheet if missing, then -- only the first time --
+ * rosters every existing player onto every existing year, so nobody
+ * disappears from a season they were already visible in. After that, use
+ * the admin dashboard's Season card to add/remove players per year (e.g.
+ * removing a graduated senior from next season).
+ */
+function migrateAddPlayerYears() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_PLAYER_YEARS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_PLAYER_YEARS);
+    sheet.appendRow(['PlayerToken', 'YearID', 'AddedAt']);
+  }
+  if (sheet.getLastRow() >= 2) {
+    Logger.log('PlayerYears sheet already has data -- leaving it alone.');
+    return;
+  }
+
+  var players = sheetToObjects_(SHEET_PLAYERS);
+  var years = sheetToObjects_(SHEET_YEARS);
+  var count = 0;
+  players.forEach(function (p) {
+    years.forEach(function (y) {
+      appendObject_(SHEET_PLAYER_YEARS, { PlayerToken: p.Token, YearID: y.YearID, AddedAt: new Date() });
+      count++;
+    });
+  });
+  Logger.log('Rostered ' + players.length + ' player(s) onto ' + years.length + ' year(s) -- ' + count + ' entries created.');
 }
 
 /**
