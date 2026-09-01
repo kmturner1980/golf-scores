@@ -33,8 +33,31 @@
 
   <div id="dashboard" class="hidden">
     <div class="card">
+      <h2>Season</h2>
+      <div id="yearMessage"></div>
+      <div class="field-row" style="align-items:end">
+        <div class="field" style="margin-bottom:0">
+          <label for="yearSelect">Viewing Year</label>
+          <select id="yearSelect"></select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" id="setCurrentYearBtn" class="secondary">Make This the Current Season</button>
+        </div>
+      </div>
+      <div class="field-row" style="align-items:end; margin-top:0.75rem">
+        <div class="field" style="margin-bottom:0">
+          <label for="newYearLabel">New Season Label</label>
+          <input type="text" id="newYearLabel" placeholder="e.g. 2027-2028">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" id="createYearBtn">Create New Season</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Team Totals</h2>
-      <div id="teamTiles" class="stat-grid"></div>
+      <div id="teamTiles"></div>
     </div>
 
     <div class="card">
@@ -116,6 +139,10 @@
               <option value="9B">Back 9</option>
             </select>
           </div>
+        </div>
+        <div class="field">
+          <label for="editYearSelect">Season</label>
+          <select id="editYearSelect" required></select>
         </div>
         <div class="field-row">
           <div class="field">

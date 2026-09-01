@@ -6,6 +6,11 @@
     loginBtn: document.getElementById('loginBtn'),
     password: document.getElementById('password'),
     dashboard: document.getElementById('dashboard'),
+    yearMessage: document.getElementById('yearMessage'),
+    yearSelect: document.getElementById('yearSelect'),
+    setCurrentYearBtn: document.getElementById('setCurrentYearBtn'),
+    newYearLabel: document.getElementById('newYearLabel'),
+    createYearBtn: document.getElementById('createYearBtn'),
     teamTiles: document.getElementById('teamTiles'),
     addPlayerForm: document.getElementById('addPlayerForm'),
     addPlayerMessage: document.getElementById('addPlayerMessage'),
@@ -41,6 +46,7 @@
     editCourseOtherRow: document.getElementById('editCourseOtherRow'),
     editCourseOther: document.getElementById('editCourseOther'),
     editCourseOtherCity: document.getElementById('editCourseOtherCity'),
+    editYearSelect: document.getElementById('editYearSelect'),
     editTeeSelect: document.getElementById('editTeeSelect'),
     editTeeOtherRow: document.getElementById('editTeeOtherRow'),
     editTeeOther: document.getElementById('editTeeOther'),
@@ -82,9 +88,54 @@
   let editingRoundId = null;
   let sortKey = 'avg';
   let sortDir = 'asc';
+  let selectedYearId = null;
 
   let session = sessionStorage.getItem('adminSession') || null;
-  let data = { players: [], rounds: [], holeScores: [] };
+  let data = { players: [], rounds: [], holeScores: [], years: [] };
+
+  // Rounds belonging to whichever year is currently selected in the Season
+  // picker -- everything the dashboard shows (Team Totals, Roster, player
+  // detail) is scoped to this, not the full all-years dataset in `data`.
+  function yearRounds() {
+    return data.rounds.filter((r) => r.Year === selectedYearId);
+  }
+
+  function isCurrentYearRow(y) {
+    return y.IsCurrent === true || y.IsCurrent === 'TRUE' || y.IsCurrent === 'true';
+  }
+
+  // Repopulates the Season selector from data.years. Keeps the previously
+  // selected year if it still exists; otherwise falls back to whichever
+  // year is marked current, or the first one.
+  function populateYearSelect() {
+    const sorted = [...data.years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
+    els.yearSelect.innerHTML = sorted.map((y) =>
+      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
+    ).join('');
+    const stillExists = sorted.some((y) => y.YearID === selectedYearId);
+    if (!stillExists) {
+      const current = sorted.find(isCurrentYearRow) || sorted[0];
+      selectedYearId = current ? current.YearID : null;
+    }
+    els.yearSelect.value = selectedYearId || '';
+    syncSetCurrentYearBtn();
+  }
+
+  function syncSetCurrentYearBtn() {
+    const selected = data.years.find((y) => y.YearID === selectedYearId);
+    els.setCurrentYearBtn.classList.toggle('hidden', !selected || isCurrentYearRow(selected));
+  }
+
+  // Populates the round editor's own Year field (separate from the page-level
+  // Season selector above) -- defaults to `yearId` if given, else whatever
+  // year is currently selected in the picker.
+  function populateEditYearSelect(yearId) {
+    const sorted = [...data.years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
+    els.editYearSelect.innerHTML = sorted.map((y) =>
+      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
+    ).join('');
+    els.editYearSelect.value = yearId || selectedYearId || '';
+  }
 
   function playerLink(token) {
     return new URL('player.html?token=' + encodeURIComponent(token), window.location.href).toString();
@@ -186,18 +237,35 @@
 
   function renderTeamTiles() {
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
-    let agg = Stats.withRates(Stats.aggregateRounds(data.rounds, holesByRound));
-    agg = Stats.applyTournamentWeighting(agg, data.rounds, holesByRound);
-    const avgDiff = Stats.averageDifferential(data.rounds, holesByRound);
-    statTiles(els.teamTiles, [
-      ['Players', data.players.length],
-      ['Rounds Logged', data.rounds.length],
-      ['Team Scoring Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
-      ['Team Avg Differential', Stats.fmtDiff(avgDiff)],
-      ['Team Fairways %', Stats.fmtPct(agg.fairwayPct)],
-      ['Team GIR %', Stats.fmtPct(agg.girPct)],
-      ['Team Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)]
-    ]);
+    const roundsByPlayer = Stats.groupBy(yearRounds(), 'PlayerToken');
+
+    const groups = [
+      { title: 'Boys', players: data.players.filter((p) => p.Sex === 'Boy') },
+      { title: 'Girls', players: data.players.filter((p) => p.Sex === 'Girl') },
+      { title: 'Sex Not Set', players: data.players.filter((p) => p.Sex !== 'Boy' && p.Sex !== 'Girl') }
+    ].filter((g) => g.players.length);
+
+    if (!groups.length) {
+      els.teamTiles.innerHTML = '<p class="muted">No players yet — add one below.</p>';
+      return;
+    }
+
+    els.teamTiles.innerHTML = groups.map((g) => {
+      const rounds = g.players.flatMap((p) => roundsByPlayer[p.Token] || []);
+      let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
+      agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+      const avgDiff = Stats.averageDifferential(rounds, holesByRound);
+      const tilesHtml = [
+        ['Players', g.players.length],
+        ['Rounds Logged', rounds.length],
+        ['Scoring Avg /18', Stats.fmtAvg(agg.scoringAvgPer18)],
+        ['Avg Differential', Stats.fmtDiff(avgDiff)],
+        ['Fairways %', Stats.fmtPct(agg.fairwayPct)],
+        ['GIR %', Stats.fmtPct(agg.girPct)],
+        ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)]
+      ].map(([label, value]) => `<div class="stat-tile"><div class="value">${value}</div><div class="label">${label}</div></div>`).join('');
+      return `<h3>${escapeHtml(g.title)} Team Totals</h3><div class="stat-grid" style="margin-bottom:1rem">${tilesHtml}</div>`;
+    }).join('');
   }
 
   // Column definitions for the sortable roster table: label shown in the
@@ -262,7 +330,7 @@
 
   function renderRoster() {
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
-    const roundsByPlayer = Stats.groupBy(data.rounds, 'PlayerToken');
+    const roundsByPlayer = Stats.groupBy(yearRounds(), 'PlayerToken');
 
     if (!data.players.length) {
       els.rosterTable.innerHTML = '<p class="muted">No players yet — add one above.</p>';
@@ -309,7 +377,7 @@
     const player = data.players.find((p) => p.Token === token);
     if (!player) return;
     currentPlayerToken = token;
-    const rounds = (Stats.groupBy(data.rounds, 'PlayerToken')[token] || [])
+    const rounds = (Stats.groupBy(yearRounds(), 'PlayerToken')[token] || [])
       .sort((a, b) => new Date(b.Date) - new Date(a.Date));
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
@@ -460,6 +528,7 @@
     els.editHolesPlayed.value = round.HolesPlayed;
     els.editIsTournament.checked = Stats.isTournamentRound(round);
     els.editNotes.value = round.Notes || '';
+    populateEditYearSelect(round.Year);
 
     populateCourseSelect(els.editCourseSelect, round.Course);
     const isOther = els.editCourseSelect.value === OTHER_COURSE_VALUE;
@@ -532,6 +601,7 @@
     els.editHolesPlayed.value = '18';
     els.editIsTournament.checked = false;
     els.editNotes.value = '';
+    populateEditYearSelect();
     els.editEntryModeHoles.checked = true;
     els.editEntryModeSummary.checked = false;
     clearEditSummaryFields();
@@ -568,7 +638,7 @@
     if (!currentPlayerToken) return;
     const player = data.players.find((p) => p.Token === currentPlayerToken);
     const name = player ? player.Name : 'this player';
-    if (!confirm(`Delete ${name}? This permanently deletes every round and score they've entered. This cannot be undone.`)) return;
+    if (!confirm(`Delete ${name}? This permanently deletes every round and score they've entered, across every season. This cannot be undone.`)) return;
     try {
       await UI.withBusy(els.deletePlayerBtn, 'Deleting…', () =>
         Api.post({ action: 'deletePlayer', session, token: currentPlayerToken }));
@@ -581,6 +651,7 @@
 
   async function refresh() {
     await loadData();
+    populateYearSelect();
     renderTeamTiles();
     renderRoster();
     els.playerDetail.classList.add('hidden');
@@ -618,6 +689,45 @@
       await refresh();
     } catch (err) {
       els.addPlayerMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  els.yearSelect.addEventListener('change', () => {
+    selectedYearId = els.yearSelect.value;
+    syncSetCurrentYearBtn();
+    renderTeamTiles();
+    renderRoster();
+    els.playerDetail.classList.add('hidden');
+    els.editRoundCard.classList.add('hidden');
+  });
+
+  els.setCurrentYearBtn.addEventListener('click', async () => {
+    els.yearMessage.innerHTML = '';
+    try {
+      await UI.withBusy(els.setCurrentYearBtn, 'Saving…', () =>
+        Api.post({ action: 'setCurrentYear', session, yearId: selectedYearId }));
+      await refresh();
+    } catch (err) {
+      els.yearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  els.createYearBtn.addEventListener('click', async () => {
+    els.yearMessage.innerHTML = '';
+    const label = els.newYearLabel.value.trim();
+    if (!label) {
+      els.yearMessage.innerHTML = '<div class="error">Enter a label for the new season first.</div>';
+      return;
+    }
+    try {
+      const result = await UI.withBusy(els.createYearBtn, 'Creating…', () =>
+        Api.post({ action: 'createYear', session, label }));
+      els.newYearLabel.value = '';
+      selectedYearId = result.yearId;
+      await refresh();
+      els.yearMessage.innerHTML = `<div class="success">Created "${escapeHtml(label)}" and made it the current season.</div>`;
+    } catch (err) {
+      els.yearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
     }
   });
 
@@ -701,6 +811,7 @@
           slopeRating: tee.slope,
           holesPlayed: els.editHolesPlayed.value,
           isTournament: els.editIsTournament.checked,
+          yearId: els.editYearSelect.value,
           notes: els.editNotes.value
         };
 

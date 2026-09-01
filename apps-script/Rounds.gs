@@ -9,6 +9,7 @@ function roundRowFields_(payload) {
   var summary = isSummaryPayload_(payload);
   var num = function (v) { return v === '' || v == null ? '' : Number(v); };
   return {
+    Year: payload.yearId || getCurrentYearId_(),
     Date: payload.date,
     Course: (payload.course || '').toString().trim(),
     Tees: (payload.tees || '').toString().trim(),
@@ -121,13 +122,18 @@ function updateRound_(roundId, payload) {
   }
 }
 
-/** Everything needed to render one player's own history (used by player.html). */
+/**
+ * Everything needed to render one player's own history (used by player.html).
+ * Scoped to the current year only -- players don't pick a season, so their
+ * own dashboard always reflects whichever one the admin has marked current.
+ */
 function getPlayerHistory_(token) {
   var player = getPlayerByToken_(token);
   if (!player) throw new Error('Invalid player link.');
 
+  var currentYearId = getCurrentYearId_();
   var rounds = sheetToObjects_(SHEET_ROUNDS).filter(function (r) {
-    return r.PlayerToken === token;
+    return r.PlayerToken === token && r.Year === currentYearId;
   });
   var roundIds = {};
   rounds.forEach(function (r) { roundIds[r.RoundID] = true; });
@@ -143,12 +149,17 @@ function getPlayerHistory_(token) {
   };
 }
 
-/** Admin-only: full dataset for the dashboard. Stats are computed client-side. */
+/**
+ * Admin-only: full dataset for the dashboard, across every year -- the
+ * admin UI filters by year client-side (and lets you switch which year
+ * you're looking at). Stats are computed client-side too.
+ */
 function getAllData_() {
   return {
     players: sheetToObjects_(SHEET_PLAYERS),
     rounds: sheetToObjects_(SHEET_ROUNDS),
-    holeScores: sheetToObjects_(SHEET_HOLE_SCORES)
+    holeScores: sheetToObjects_(SHEET_HOLE_SCORES),
+    years: listYears_()
   };
 }
 

@@ -15,7 +15,7 @@ function initializeSheets() {
 
   var rounds = ss.getSheetByName(SHEET_ROUNDS) || ss.insertSheet(SHEET_ROUNDS);
   if (rounds.getLastRow() === 0) {
-    rounds.appendRow(['RoundID', 'PlayerToken', 'Date', 'Course', 'Tees', 'CourseRating', 'SlopeRating',
+    rounds.appendRow(['RoundID', 'PlayerToken', 'Year', 'Date', 'Course', 'Tees', 'CourseRating', 'SlopeRating',
       'HolesPlayed', 'IsTournament',
       'EntryMode', 'SummaryPar', 'SummaryScore', 'SummaryFairwaysHit', 'SummaryFairwaysAttempted',
       'SummaryGIR', 'SummaryPutts', 'SummaryPenalties', 'SummaryEagles', 'SummaryBirdies', 'SummaryPars',
@@ -25,6 +25,12 @@ function initializeSheets() {
   var holeScores = ss.getSheetByName(SHEET_HOLE_SCORES) || ss.insertSheet(SHEET_HOLE_SCORES);
   if (holeScores.getLastRow() === 0) {
     holeScores.appendRow(['RoundID', 'Hole', 'Par', 'Score', 'FairwayHit', 'GIR', 'Putts', 'Penalties']);
+  }
+
+  var years = ss.getSheetByName(SHEET_YEARS) || ss.insertSheet(SHEET_YEARS);
+  if (years.getLastRow() === 0) {
+    years.appendRow(['YearID', 'Label', 'IsCurrent', 'CreatedAt']);
+    years.appendRow([Utilities.getUuid(), defaultYearLabel_(), true, new Date()]);
   }
 
   // Remove the default "Sheet1" if it's still there and empty.
@@ -120,6 +126,67 @@ function migrateAddRatingColumns() {
     sheet.getRange(1, afterCol + i + 1).setValue(name);
   });
   Logger.log('Added rating columns to Rounds sheet: ' + missing.join(', '));
+}
+
+/** "2026-2027"-style default for a brand-new Years sheet, based on today. */
+function defaultYearLabel_() {
+  var now = new Date();
+  var y = now.getFullYear();
+  // School years/seasons generally start mid-year -- treat Jan-Jun as the
+  // back half of the school year that started the previous fall.
+  var startYear = now.getMonth() >= 6 ? y : y - 1;
+  return startYear + '-' + (startYear + 1);
+}
+
+/**
+ * Run this once if your spreadsheet was created before year/season
+ * tracking existed. Safe to run more than once. Creates the Years sheet
+ * with one starter year (marked current) if it doesn't exist, adds the
+ * `Year` column to Rounds if missing, and backfills any existing rounds
+ * with no Year onto that starter year -- otherwise they'd silently vanish
+ * from every year-filtered view.
+ */
+function migrateAddYears() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var years = ss.getSheetByName(SHEET_YEARS);
+  var createdStarterYear = false;
+  var starterYearId;
+
+  if (!years) {
+    years = ss.insertSheet(SHEET_YEARS);
+    years.appendRow(['YearID', 'Label', 'IsCurrent', 'CreatedAt']);
+  }
+  if (years.getLastRow() < 2) {
+    starterYearId = Utilities.getUuid();
+    years.appendRow([starterYearId, defaultYearLabel_(), true, new Date()]);
+    createdStarterYear = true;
+    Logger.log('Created Years sheet with starter year "' + defaultYearLabel_() + '".');
+  } else {
+    Logger.log('Years sheet already has data -- leaving it alone.');
+  }
+
+  var roundsSheet = getSheet_(SHEET_ROUNDS);
+  var headers = roundsSheet.getRange(1, 1, 1, roundsSheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('Year') === -1) {
+    var afterCol = headers.indexOf('PlayerToken') + 1;
+    roundsSheet.insertColumnAfter(afterCol);
+    roundsSheet.getRange(1, afterCol + 1).setValue('Year');
+    Logger.log('Added Year column to Rounds sheet.');
+    headers = roundsSheet.getRange(1, 1, 1, roundsSheet.getLastColumn()).getValues()[0];
+  }
+
+  if (createdStarterYear) {
+    var yearCol = headers.indexOf('Year') + 1;
+    var values = roundsSheet.getDataRange().getValues();
+    var backfilled = 0;
+    for (var i = 1; i < values.length; i++) {
+      if (!values[i][yearCol - 1]) {
+        roundsSheet.getRange(i + 1, yearCol).setValue(starterYearId);
+        backfilled++;
+      }
+    }
+    if (backfilled) Logger.log('Backfilled ' + backfilled + ' existing round(s) onto the starter year.');
+  }
 }
 
 /**
