@@ -138,7 +138,20 @@
   // selected year if it still exists; otherwise falls back to whichever
   // year is marked current, or the first one.
   function populateYearSelect() {
-    const sorted = [...data.years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
+    // A stale Apps Script deployment (one that predates season support)
+    // returns no `years` key at all, and a freshly-migrated-but-empty sheet
+    // returns []. Either way, mapping over it silently yields a blank
+    // dropdown with no explanation -- surface an actionable message instead.
+    const years = Array.isArray(data.years) ? data.years : [];
+    if (!years.length) {
+      els.yearSelect.innerHTML = '';
+      els.yearSelect.value = '';
+      selectedYearId = null;
+      els.yearMessage.innerHTML = '<div class="error">No seasons loaded. If you have a season in your sheet, your Apps Script Web App is likely running an older version - redeploy the latest backend (Deploy &rarr; Manage deployments &rarr; New version), and if needed run migrateAddYears() and migrateAddPlayerYears() from the Apps Script editor.</div>';
+      syncSetCurrentYearBtn();
+      return;
+    }
+    const sorted = [...years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
     els.yearSelect.innerHTML = sorted.map((y) =>
       `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
     ).join('');
@@ -152,7 +165,7 @@
   }
 
   function syncSetCurrentYearBtn() {
-    const selected = data.years.find((y) => y.YearID === selectedYearId);
+    const selected = (data.years || []).find((y) => y.YearID === selectedYearId);
     els.setCurrentYearBtn.classList.toggle('hidden', !selected || isCurrentYearRow(selected));
   }
 
@@ -160,7 +173,7 @@
   // Season selector above) -- defaults to `yearId` if given, else whatever
   // year is currently selected in the picker.
   function populateEditYearSelect(yearId) {
-    const sorted = [...data.years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
+    const sorted = [...(data.years || [])].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
     els.editYearSelect.innerHTML = sorted.map((y) =>
       `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
     ).join('');
