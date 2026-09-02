@@ -23,6 +23,7 @@
   var isCurrentYearRow = AdminLogic.isCurrentYearRow;
   var resolveViewingYearId = AdminLogic.resolveViewingYearId;
   var existingPlayerCandidates = AdminLogic.existingPlayerCandidates;
+  var importCandidatesFrom = AdminLogic.importCandidatesFrom;
 
   var PROP_ITERATIONS = 200; // >= 100 as required by the spec
 
@@ -302,6 +303,120 @@
         assertEqual(result.length, 0, 'all-rostered case must yield an empty candidate list');
       }
     }
+  });
+
+  // ---- PlayerYears + currentYearId generators (Property 4) ---------------
+  // A pool of YearIDs so several years coexist; the chosen currentYearId is
+  // drawn to include the boundaries: a year with roster rows, a year with none,
+  // an id absent from playerYears entirely, and the empty-roster case.
+  var YEAR_ID_POOL = ['Y1', 'Y2', 'Y3', 'Y4'];
+
+  // Build PlayerYears rows ({ YearID, PlayerToken }) spanning several YearIDs.
+  // Tokens are drawn from the players' tokens (so some rows match real players)
+  // plus occasional stale tokens that no player owns (harmlessly ignored).
+  function genPlayerYears(players) {
+    var len = randInt(0, 12); // includes the empty roster-rows case (len === 0)
+    var rows = [];
+    for (var i = 0; i < len; i++) {
+      var token;
+      if (players.length && rand() < 0.8) {
+        token = pick(players).Token;      // usually a real player's token
+      } else {
+        token = 'T' + randInt(61, 120);   // occasionally a stale token
+      }
+      rows.push({ YearID: pick(YEAR_ID_POOL), PlayerToken: token });
+    }
+    return rows;
+  }
+
+  // currentYearId generator: a year present in the pool (may or may not have
+  // rows), plus a stale id absent from playerYears entirely (a boundary).
+  function genCurrentYearId() {
+    var choice = randInt(0, 3);
+    if (choice === 3) return 'Y99'; // absent from the pool -> empty result
+    return YEAR_ID_POOL[choice];
+  }
+
+  // ---- TASK 1.7 ----------------------------------------------------------
+  // Feature: admin-season-settings, Property 4: Import candidates are exactly the previous-current roster, name-sorted
+  // Validates: Requirements 4.2, 4.3, 4.8
+  test('Property 4: import candidates are exactly the previous-current roster, sorted ascending by Name', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var players = genPlayers();
+      var playerYears = genPlayerYears(players);
+      var currentYearId = genCurrentYearId();
+      var result = importCandidatesFrom(players, playerYears, currentYearId);
+
+      // Reference roster: the set of player tokens rostered to currentYearId
+      // (only tokens that belong to a real player count).
+      var playerTokens = {};
+      players.forEach(function (p) { playerTokens[p.Token] = true; });
+      var rosteredTokens = {};
+      playerYears.forEach(function (r) {
+        if (r.YearID === currentYearId && playerTokens[r.PlayerToken]) {
+          rosteredTokens[r.PlayerToken] = true;
+        }
+      });
+
+      // 1. No player outside the currentYearId roster appears in the result.
+      result.forEach(function (p) {
+        assert(
+          rosteredTokens[p.Token] === true,
+          'non-rostered player leaked into import candidates: ' + JSON.stringify(p) +
+            ' for currentYearId=' + JSON.stringify(currentYearId)
+        );
+      });
+
+      // 2. Every rostered player is present exactly once (set equality by token).
+      var expectedTokens = Object.keys(rosteredTokens).sort();
+      var actualTokens = result.map(function (p) { return p.Token; }).slice().sort();
+      assertEqual(
+        JSON.stringify(actualTokens),
+        JSON.stringify(expectedTokens),
+        'import candidate token set differs from the currentYearId roster set'
+      );
+
+      // 3. Result is sorted ascending by Name (localeCompare, matching impl).
+      for (var j = 1; j < result.length; j++) {
+        assert(
+          String(result[j - 1].Name).localeCompare(String(result[j].Name)) <= 0,
+          'import candidates are not name-sorted ascending: ' +
+            JSON.stringify(result[j - 1].Name) + ' before ' + JSON.stringify(result[j].Name)
+        );
+      }
+
+      // 4. Empty-result boundaries: a currentYearId with no roster rows, and a
+      //    currentYearId absent from playerYears, both yield an empty array.
+      var hasRosterRows = playerYears.some(function (r) {
+        return r.YearID === currentYearId && playerTokens[r.PlayerToken];
+      });
+      if (!hasRosterRows) {
+        assertEqual(
+          result.length,
+          0,
+          'currentYearId with no roster rows must yield an empty import candidate list'
+        );
+      }
+    }
+  });
+
+  // Explicit empty-result boundary checks (independent of the randomized run).
+  test('Property 4 boundary: empty result for a currentYearId with no roster rows', function () {
+    var players = [{ Token: 'T1', Name: 'Alice' }, { Token: 'T2', Name: 'Bob' }];
+    var playerYears = [
+      { YearID: 'Y1', PlayerToken: 'T1' },
+      { YearID: 'Y1', PlayerToken: 'T2' }
+    ];
+    // Y2 exists in no PlayerYears row -> empty roster for Y2.
+    assertEqual(importCandidatesFrom(players, playerYears, 'Y2').length, 0, 'no rows -> empty');
+  });
+
+  test('Property 4 boundary: empty result for a currentYearId absent from playerYears', function () {
+    var players = [{ Token: 'T1', Name: 'Alice' }];
+    var playerYears = [{ YearID: 'Y1', PlayerToken: 'T1' }];
+    assertEqual(importCandidatesFrom(players, playerYears, 'Y99').length, 0, 'absent id -> empty');
+    // Empty inputs are treated as empty.
+    assertEqual(importCandidatesFrom([], [], 'Y1').length, 0, 'empty players/playerYears -> empty');
   });
 
   // ---- TASK 1.5: unit / example tests ------------------------------------

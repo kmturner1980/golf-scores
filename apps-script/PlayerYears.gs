@@ -44,11 +44,3 @@ function removePlayerFromYear_(token, yearId) {
     }
   }
 }
-
-/** Used when creating a new season -- carries the previous season's roster forward. */
-function copyPlayerYearRoster_(fromYearId, toYearId) {
-  if (!fromYearId) return;
-  listPlayerYears_()
-    .filter(function (py) { return py.YearID === fromYearId; })
-    .forEach(function (py) { addPlayerToYear_(py.PlayerToken, toYearId); });
-}

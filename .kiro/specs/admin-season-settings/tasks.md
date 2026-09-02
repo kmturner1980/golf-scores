@@ -9,16 +9,26 @@ persistence of the last-viewed season via a guarded `localStorage` wrapper. The
 work is frontend-only (vanilla-JS IIFE, single stylesheet, static HTML) with
 **no build step** and **no new dependencies**.
 
-The order is deliberately incremental: the two pure helpers
-(`resolveViewingYearId`, `existingPlayerCandidates`) and their property/unit
-tests come first so the DOM wiring that depends on them can be built and
-integrated on a tested foundation. Season markup relocation and CSS come next,
-then the `admin.js` wiring (store, resolver call, write hooks, storage-failure
-notice), and finally a manual verification checklist for the DOM/storage/network
+The order is deliberately incremental: the pure helpers
+(`resolveViewingYearId`, `existingPlayerCandidates`, `importCandidatesFrom`) and
+their property/unit tests come first so the DOM wiring that depends on them can
+be built and integrated on a tested foundation. Season markup relocation and CSS
+come next, then the `admin.js` wiring (store, resolver call, write hooks,
+storage-failure notice, import checklist render/collect), the single backend
+`createYear` change (select-only rostering, replacing the full carry-forward),
+and finally a manual verification checklist for the DOM/storage/network
 behaviors that are not economically automatable here.
 
+This revision folds in the "import selected players when creating a season"
+capability: a pure `importCandidatesFrom` helper (+ property test), a
+`#importPlayersList` checklist in the Create New Season block, `admin.js`
+render/collect wiring, and the one backend change that makes `createYear` roster
+only the selected tokens (no automatic full carry-forward). The frontend and
+backend must ship in a single coordinated Apps Script redeploy with no
+old-behavior fallback.
+
 Language: **JavaScript** (matches the existing vanilla-JS module IIFE; the
-design specifies JS, not pseudocode).
+design specifies JS, not pseudocode). The backend change is Google Apps Script.
 
 ## Tasks
 
@@ -56,11 +66,24 @@ design specifies JS, not pseudocode).
     - Trimmed-empty label detection: `"   "` is treated as empty (drives Req 4.4).
     - _Requirements: 4.4, 5.1_
 
+  - [x] 1.6 Add `importCandidatesFrom` pure helper to `assets/js/admin-logic.js`
+    - Add `importCandidatesFrom(players, playerYears, currentYearId)` to the existing `AdminLogic` namespace alongside `resolveViewingYearId` and `existingPlayerCandidates` (same file, same browser+Node export shape).
+    - Return exactly the players rostered to `currentYearId` — i.e. the players whose `Token` matches a `PlayerYears` row with that `YearID` — ordered ascending by `Name`. Include no player outside that roster and omit none that is in it.
+    - Return an empty array when `currentYearId` has no matching `PlayerYears` rows and when `currentYearId` matches nothing; treat missing/empty `players` or `playerYears` as empty inputs. No DOM, no `localStorage`.
+    - _Requirements: 4.2, 4.3, 4.8_
+
+  - [x] 1.7 Write property test for import candidates
+    - Reuse the dependency-free test harness (`assets/js/admin-logic.test.js`, runnable via `node` or a `<script>` page). Hand-roll a players generator (`{ Token, Name }` with possibly duplicate/edge names), a `PlayerYears` generator (`{ YearID, PlayerToken }` rows spanning several `YearID`s — some matching the chosen `currentYearId`, some not), and a `currentYearId` generator that includes the `currentYearId`-absent boundary and the empty-roster boundary; run a minimum of 100 iterations.
+    - Assert `importCandidatesFrom(players, playerYears, currentYearId)` equals exactly the players rostered to `currentYearId` sorted ascending by `Name`; assert no player outside that roster appears and none in it is omitted; assert the empty-result boundary for a `currentYearId` with no roster rows and for a `currentYearId` absent from `playerYears`.
+    - `// Feature: admin-season-settings, Property 4: Import candidates are exactly the previous-current roster, name-sorted`
+    - **Property 4: Import candidates are exactly the previous-current roster, name-sorted**
+    - **Validates: Requirements 4.2, 4.3, 4.8**
+
 - [x] 2. Checkpoint - pure helpers tested before any DOM wiring
   - Ensure all tests pass, ask the user if questions arise. There is no build step and nothing to compile; run tests via `node assets/js/admin-logic.test.js` or the script test page.
 
-- [ ] 3. Relocate season markup in `admin.html`
-  - [-] 3.1 Reduce the Season card to the Viewing Season selector only
+- [x] 3. Relocate season markup in `admin.html`
+  - [x] 3.1 Reduce the Season card to the Viewing Season selector only
     - Edit the existing "Season" card so it contains only `#yearMessage` and the `#yearSelect` field with its label; remove the make-current, create-season, and any controls that move to Settings from this card. Keep `#yearSelect` and `#yearMessage` IDs and their location on the main dashboard.
     - _Requirements: 2.1, 8.4_
 
@@ -71,6 +94,11 @@ design specifies JS, not pseudocode).
     - Remove the now-empty standalone "Add Existing Player" card wrapper.
     - Leave `#removeFromYearBtn` on the player detail card unchanged.
     - _Requirements: 1.1, 1.2, 1.5, 4.1, 5.1, 6.1, 7.1, 7.4_
+
+  - [x] 3.3 Add the Import_Candidates checklist container to the Create New Season block
+    - Inside the Create New Season block within `#settingsSection`, add an import group holding a `<label>` "Import players from the current season", a `<p class="muted">` helper text explaining nothing is pre-selected and a season can be created with no players, and an empty `<div id="importPlayersList"></div>` container that `admin.js` populates.
+    - Place it after the `#newYearLabel` + `#createYearBtn` row so the checklist sits with the create controls. Do not pre-render any checkboxes in HTML (they are rendered by JS, all unchecked).
+    - _Requirements: 4.2, 4.3_
 
 - [x] 4. Add Settings disclosure styles in `assets/css/styles.css`
   - [x] 4.1 Style the Settings summary and open/closed marker from brand variables
@@ -105,50 +133,89 @@ design specifies JS, not pseudocode).
     - In the existing `createYear` success path, after `selectedYearId = result.yearId`, call `Store.writeViewingYearId(result.yearId)`. Leave the rest of the handler (clear label, success message, `refresh()`) unchanged.
     - _Requirements: 3.5, 4.5, 4.6_
 
+  - [x] 6.3 Add `els.importPlayersList` and `renderImportCandidates()`, call from `refresh()`
+    - Add `els.importPlayersList = document.getElementById('importPlayersList')` to the `els` map (the only new `els` entry).
+    - Add `renderImportCandidates()`: find the season currently marked current via `isCurrentYearRow`; delegate candidate computation to `AdminLogic.importCandidatesFrom(data.players, data.playerYears, currentYear.YearID)`; render one **all-unchecked** `.import-player` checkbox row per candidate (token as `value`, name as label, HTML-escaped) into `#importPlayersList`, or a single "No players to import." `.muted` note when there is no current season or the candidate list is empty.
+    - Call `renderImportCandidates()` from `refresh()` alongside `populateAddExistingSelect()` so the checklist reflects current data and resets to all-unchecked after every refresh.
+    - _Requirements: 4.2, 4.3_
+
+  - [x] 6.4 Add `collectImportSelection()`
+    - Add `collectImportSelection()` that returns the array of `value`s from the checked `.import-player` boxes inside `#importPlayersList` (the Import_Selection; may be empty).
+    - _Requirements: 4.4, 4.8_
+
+  - [x] 6.5 Send `playerTokens` in the create payload and handle success/error retention
+    - In the `createYearBtn` handler, include `playerTokens: collectImportSelection()` in the `createYear` request payload.
+    - On **success**: clear `#newYearLabel`, reset the checklist to all-unchecked (via `refresh()` → `renderImportCandidates()`), set `selectedYearId = result.yearId` and `Store.writeViewingYearId(result.yearId)`, `refresh()`, and show the confirmation identifying the created season.
+    - On **error**: show the backend reason and retain **both** the entered label (do not clear `#newYearLabel`) and the current checklist selection (do not re-render the checklist), so the Admin can retry without re-picking players; `UI.withBusy` re-enables the button.
+    - _Requirements: 3.5, 4.4, 4.7, 4.8, 4.9, 4.10_
+
 - [x] 7. Point `populateAddExistingSelect()` at the pure candidate helper
   - [x] 7.1 Use `existingPlayerCandidates` to build the add-existing options
     - Refactor `populateAddExistingSelect()` so it computes candidates via `existingPlayerCandidates(players, rosterTokensForYear(selectedYearId))` and only renders the returned array; preserve disabling the add button with the all-rostered message when the result is empty. Keep it running during `refresh()` and on `#yearSelect` change.
     - _Requirements: 6.1, 6.2, 6.3_
 
-- [x] 8. Checkpoint - relocation and wiring integrated
-  - Ensure all tests pass, ask the user if questions arise. There is no build step and nothing to compile; run the pure-helper tests via `node` or the script test page and confirm the reused `createYear`/`setCurrentYear`/`addExisting` handlers still resolve their `els.*` references after the markup move.
+- [x] 8. Change the backend `createYear` action to roster only selected tokens
+  - [x] 8.1 Pass `playerTokens` through in `apps-script/Code.gs`
+    - In `doPost`, change the `'createYear'` case to call `createYear_(body.label, body.playerTokens)` after `requireSession_(body.session)`, still returning via `jsonOut_(...)`. Do not add, rename, or remove any action — this is the same `createYear` action with an extended request.
+    - _Requirements: 8.1, 8.3_
 
-- [x] 9. Manual verification checklist (DOM, localStorage, live backend)
+  - [x] 8.2 Roster only the provided tokens in `apps-script/Years.gs` `createYear_`
+    - Change the signature to `createYear_(label, playerTokens)`. Keep the existing label trim + required check, the duplicate-label check, `setAllYearsNotCurrent_()`, and the append of the new Years row (`IsCurrent: true`) unchanged.
+    - Replace the roster step: iterate the provided tokens (`Array.isArray(playerTokens) ? playerTokens : []`) and roster each truthy token via `addPlayerToYear_(token, yearId)` (idempotent, so duplicate tokens are harmless). An empty or omitted list rosters nobody → empty-roster season.
+    - REMOVE the unconditional `if (previousCurrent) copyPlayerYearRoster_(previousCurrent.YearID, yearId)` carry-forward (and the now-unused `previousCurrent` capture). Keep **no** old-behavior fallback.
+    - _Requirements: 4.8, 8.1, 8.4_
+
+  - [x] 8.3 Remove the now-unused `copyPlayerYearRoster_` helper in `apps-script/PlayerYears.gs`
+    - Delete `copyPlayerYearRoster_` (its only caller was `createYear_`, confirmed by the design). Leave `addPlayerToYear_` and `isPlayerInYear_` in place — they are used elsewhere and by the new roster loop.
+    - Note: tasks 8.1–8.3 require a single coordinated Apps Script redeploy shipped **together with** the frontend change; there is no fallback to the old full carry-forward behavior.
+    - _Requirements: 8.1, 8.3, 8.4_
+
+- [x] 9. Checkpoint - relocation and wiring integrated
+  - Ensure all tests pass, ask the user if questions arise. There is no build step and nothing to compile; run the pure-helper tests via `node` or the script test page and confirm the reused `createYear`/`setCurrentYear`/`addExisting` handlers still resolve their `els.*` references after the markup move, and that the import checklist renders/collects against `#importPlayersList`.
+
+- [~] 10. Manual verification checklist (DOM, localStorage, live backend)
   - Perform and record the following manual checks against a running deployment. These are not economically automatable here (real DOM, real `localStorage`, live Apps Script backend). Note: there is no build step and nothing to compile.
   - Settings collapse (Req 1): on load Settings is collapsed with controls hidden; summary reads "Settings" with a visible marker; clicking toggles open/closed and rotates the marker.
   - Viewing selector placement (Req 2): selector sits outside Settings, always enabled, marks the current season with `(Current)`, switching updates Team Totals/Roster/detail; an empty season shows the empty-state message.
   - Persistence (Req 3): selecting a non-current season then reloading restores it; cleared/blocked `localStorage` falls back to current season with the non-blocking notice and still completes load; a stale stored id falls back to current/newest.
-  - Create season (Req 4): empty/whitespace label rejected with validation message and no request; a valid label creates, clears input, selects+persists the new season, shows confirmation; backend error shows the reason, keeps the label, re-enables the button.
+  - Create season (Req 4): empty/whitespace label rejected with validation message and no request; a valid label creates, clears input, selects+persists the new season, shows confirmation; backend error shows the reason, keeps the label AND the checklist selection, re-enables the button.
+  - Import checklist (Req 4.2, 4.3, 4.4, 4.8): on render no candidate is pre-checked; selecting a subset and creating rosters exactly those players onto the new season; creating with zero selected produces an empty-roster season; when there is no previous roster or no current season the checklist shows a "no players to import" note and creation still succeeds with an empty season.
   - Make current (Req 5): button hidden when viewing the current season, shown otherwise; success moves the `(Current)` marker; error leaves state unchanged.
   - Add existing player (Req 6): selector lists only non-rostered players name-sorted; updates on viewing-season change; disabled with all-rostered message when none remain; success adds to roster; error keeps selector usable.
   - Remove from season (Req 7): control present on player detail, absent from Settings; removal updates roster; error leaves player rostered.
-  - Contract preservation (Req 8): with Settings collapsed the dashboard still scopes to the viewing season; the empty-season redeploy message still shows; no files under `apps-script/` are modified.
-  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
+  - Contract preservation (Req 8): with Settings collapsed the dashboard still scopes to the viewing season; the empty-season redeploy message still shows; the ONLY modified backend action is `createYear` (extended request accepting `playerTokens`), while `setCurrentYear`/`addPlayerToYear`/`removePlayerFromYear`/`adminData` are unchanged; no backend action is added, renamed, or removed; the change ships as a single coordinated Apps Script redeploy (frontend + backend together) with no old-behavior fallback.
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8_
 
 ## Notes
 
 - Tasks marked with `*` are optional (property, unit, and integration tests) and can be skipped for a faster MVP; core implementation tasks are never optional.
 - Each task references specific requirements (or a design property) for traceability.
 - Property tests use a hand-rolled generator with a minimum of 100 iterations and add no new dependencies, honoring the no-build / no-dependency constraint.
-- The two pure helpers and their tests come before the DOM wiring that depends on them, so integration builds on a tested foundation.
-- There is no build step and nothing to compile; tests run via `node assets/js/admin-logic.test.js` or a `<script>` test page. Checkpoints ensure incremental validation.
-- The reused `createYear` / `setCurrentYear` / `addExisting` handlers keep their logic verbatim; only their host markup moves.
+- The three pure helpers (`resolveViewingYearId`, `existingPlayerCandidates`, `importCandidatesFrom`) and their tests come before the DOM wiring that depends on them, so integration builds on a tested foundation.
+- There is no build step and nothing to compile for the frontend; tests run via `node assets/js/admin-logic.test.js` or a `<script>` test page. Checkpoints ensure incremental validation.
+- The reused `setCurrentYear` / `addExisting` handlers keep their logic verbatim; only their host markup moves. The `createYear` handler keeps its trimmed-empty guard and persistence but is extended to send `playerTokens` and to retain the label + checklist on error.
+- The single backend change modifies only the existing `createYear` action (`Code.gs` passthrough + `Years.gs` select-only rostering + removal of the dead `copyPlayerYearRoster_` helper). It requires one coordinated Apps Script redeploy shipped together with the frontend, with no fallback to the old full-roster carry-forward. The backend tasks touch separate files from the frontend and run in the first wave.
 
 ## Task Dependency Graph
 
 ```json
 {
   "waves": [
-    { "id": 0, "tasks": ["1.1"] },
+    { "id": 0, "tasks": ["1.1", "8.1", "8.2", "8.3"] },
     { "id": 1, "tasks": ["1.2", "1.3", "1.4", "1.5", "4.1"] },
-    { "id": 2, "tasks": ["3.1"] },
-    { "id": 3, "tasks": ["3.2"] },
-    { "id": 4, "tasks": ["5.1", "5.2"] },
-    { "id": 5, "tasks": ["5.3"] },
-    { "id": 6, "tasks": ["5.4"] },
-    { "id": 7, "tasks": ["6.1"] },
-    { "id": 8, "tasks": ["6.2"] },
-    { "id": 9, "tasks": ["7.1"] }
+    { "id": 2, "tasks": ["1.6"] },
+    { "id": 3, "tasks": ["1.7", "3.1"] },
+    { "id": 4, "tasks": ["3.2"] },
+    { "id": 5, "tasks": ["3.3"] },
+    { "id": 6, "tasks": ["5.1", "5.2"] },
+    { "id": 7, "tasks": ["5.3"] },
+    { "id": 8, "tasks": ["5.4"] },
+    { "id": 9, "tasks": ["6.1"] },
+    { "id": 10, "tasks": ["6.2"] },
+    { "id": 11, "tasks": ["6.3"] },
+    { "id": 12, "tasks": ["6.4"] },
+    { "id": 13, "tasks": ["6.5"] },
+    { "id": 14, "tasks": ["7.1"] }
   ]
 }
 ```

@@ -10,18 +10,24 @@ collapsible, collapsed-by-default **Settings** section, while the
 also adds cross-session persistence of the last-viewed season via
 `localStorage`.
 
-The change is **frontend-only**. No Google Apps Script backend action is added,
-renamed, or modified. The existing actions `createYear`, `setCurrentYear`,
-`addPlayerToYear`, `removePlayerFromYear`, and `adminData` are reused exactly as
-they are today. There are no new dependencies, no build step, and no framework —
-the work stays within the existing vanilla-JS module IIFE, the single stylesheet,
-and the static HTML.
+The change is **primarily frontend, with exactly one backend change**. No Google
+Apps Script backend action is added, renamed, or removed, but the existing
+`createYear` action is extended: instead of always carrying the full previous
+current-season roster forward, it now accepts a list of selected player tokens
+and rosters only those players onto the new season (an empty/omitted list yields
+an empty roster). This is the only backend edit, and it requires **exactly one
+Apps Script redeploy**. The other actions `setCurrentYear`, `addPlayerToYear`,
+`removePlayerFromYear`, and `adminData` are reused exactly as they are today.
+There are no new dependencies, no build step, and no framework — the work stays
+within the existing vanilla-JS module IIFE, the single stylesheet, and the
+static HTML.
 
 The design is deliberately small: it is a relocation of existing markup, a thin
-new state-resolution helper for season selection, three new/adjusted `els`
-references, and a guarded `localStorage` read/write pair. Every existing behavior
-(scoping to the viewing season, the empty-seasons safeguard, the round editor,
-Remove from Season on player detail) is preserved.
+new state-resolution helper for season selection, a player-import checklist for
+season creation, a small `createYear_` change on the backend, the corresponding
+`els` references, and a guarded `localStorage` read/write pair. Every existing
+behavior (scoping to the viewing season, the empty-seasons safeguard, the round
+editor, Remove from Season on player detail) is preserved.
 
 ### Goals
 
@@ -31,14 +37,22 @@ Remove from Season on player detail) is preserved.
   dashboard. (Req 2)
 - Remember the last-viewed season across reloads, degrading gracefully when
   storage is unavailable. (Req 3)
-- Preserve Create Season, Make Current, and Add Existing Player behavior while
-  relocating them. (Reqs 4, 5, 6)
+- Relocate Make Current and Add Existing Player behavior unchanged, and relocate
+  Create Season while extending it with a player-import checklist. (Reqs 4, 5, 6)
+- Let the Admin choose which players from the previous current season's roster to
+  import onto a newly created season (none pre-checked, zero-selected allowed,
+  empty candidate list yields an empty-roster season), replacing the automatic
+  full-roster carry-forward. (Req 4)
 - Leave Remove from Season on player detail untouched. (Req 7)
-- Change only *where* controls live, never the backend contract. (Req 8)
+- Change only the `createYear` backend action (extend its request to carry the
+  selected tokens); leave every other backend contract untouched. (Req 8)
 
 ### Non-Goals
 
-- No new backend action, no Apps Script redeploy.
+- No **new, renamed, or removed** backend action. Modifying the existing
+  `createYear` action is in scope; adding/renaming/removing actions is not.
+- Exactly one Apps Script redeploy (to apply the `createYear` change) is **in
+  scope**; no further redeploys are needed.
 - No change to Team Totals, Roster, player-detail stats, or the round editor
   logic beyond the season-selection wiring.
 - No generic settings framework beyond a container that could hold future
@@ -52,13 +66,20 @@ IIFE that closes over module-private state (`data`, `selectedYearId`,
 `currentPlayerToken`, ...) and an `els` map of cached DOM references. Shared
 helpers live in sibling globals (`Api`, `UI`, `Stats`, `HoleTable`).
 
-This feature touches three files only:
+This feature touches the following files:
 
 | File | Change |
 | --- | --- |
-| `admin.html` | Relocate season controls into a new `<details id="settingsSection">`; keep the Viewing Season selector in its own card. |
+| `admin.html` | Relocate season controls into a new `<details id="settingsSection">`; keep the Viewing Season selector in its own card. Add an Import_Candidates checklist container (`#importPlayersList`) inside the Create New Season block. |
 | `assets/css/styles.css` | Add `.settings` disclosure styles built from existing brand variables. |
-| `assets/js/admin.js` | Add a pure `resolveViewingYearId()` helper, a guarded `Store` wrapper for `localStorage`, write-on-change / write-on-create hooks, and read-on-load precedence in `populateYearSelect()`. Move the `createYear` / `setCurrentYear` / `addExisting` `els` and handlers unchanged (only their host markup moves). |
+| `assets/js/admin.js` | Add a pure `resolveViewingYearId()` helper, a guarded `Store` wrapper for `localStorage`, write-on-change / write-on-create hooks, and read-on-load precedence in `populateYearSelect()`. Move the `setCurrentYear` / `addExisting` `els` and handlers unchanged. Change the `createYearBtn` handler to render the import checklist and send `playerTokens` in the `createYear` payload; add an `els.importPlayersList` reference plus `renderImportCandidates()` / `collectImportSelection()`. |
+| `assets/js/admin-logic.js` | Add a pure `importCandidatesFrom(players, playerYears, currentYearId)` helper (name-sorted previous-current roster) so the checklist input is property-testable. |
+| `apps-script/Years.gs` | Extend `createYear_(label, playerTokens)` to roster only the provided tokens onto the new season (via `addPlayerToYear_`) instead of unconditionally carrying the full previous roster forward. Remove the now-unused `copyPlayerYearRoster_` call. |
+| `apps-script/Code.gs` | Pass `body.playerTokens` through: `createYear_(body.label, body.playerTokens)`. No new/renamed action. |
+
+The `apps-script/*` edits require **one** coordinated Apps Script redeploy
+(Req 8.4); the frontend and backend must ship together (see the backward-compat
+note below).
 
 ### Layout after the change
 
@@ -160,7 +181,7 @@ selector keeps season concerns adjacent):
     </div>
 
     <!-- Create new season (Req 4) -->
-    <div class="field-row" style="align-items:end; margin-bottom:0.75rem">
+    <div class="field-row" style="align-items:end; margin-bottom:0.5rem">
       <div class="field" style="margin-bottom:0">
         <label for="newYearLabel">New Season Label</label>
         <input type="text" id="newYearLabel" placeholder="e.g. 2027-2028" maxlength="100">
@@ -168,6 +189,14 @@ selector keeps season concerns adjacent):
       <div class="field" style="margin-bottom:0">
         <button type="button" id="createYearBtn">Create New Season</button>
       </div>
+    </div>
+
+    <!-- Import players from the previous current season (Req 4.2, 4.3, 4.8) -->
+    <div class="field" style="margin-bottom:0.75rem">
+      <label>Import players from the current season</label>
+      <p class="muted">Pick which players to carry onto the new season. Nothing is
+        selected by default, and you can create a season with no players.</p>
+      <div id="importPlayersList"></div>
     </div>
 
     <!-- Add existing player to viewing season (Req 6) -->
@@ -194,11 +223,109 @@ Relocation summary:
 | `#yearSelect`, `#yearMessage` | "Season" card | **Stays** in Viewing Season card |
 | `#setCurrentYearBtn` | "Season" card | Moves into `#settingsSection` |
 | `#newYearLabel`, `#createYearBtn` | "Season" card | Moves into `#settingsSection` |
+| `#importPlayersList` (import checklist) | *(new)* | Added inside the Create New Season block in `#settingsSection` |
 | `#addExistingSelect`, `#addExistingBtn`, `#addExistingMessage` | standalone "Add Existing Player" card | Moves into `#settingsSection` |
 | `#removeFromYearBtn` | player detail card | **Unchanged** (Req 7) |
 
 Note the `maxlength="100"` added to `#newYearLabel` to reflect Req 4.1's
 1–100-character bound (the trim/empty check in JS handles the lower bound).
+
+The `#importPlayersList` region is the Import_Candidates checklist (Req 4.2). It
+is populated by `renderImportCandidates()` (see the JS section) from the roster
+of the season currently marked current — one checkbox row per candidate, each
+carrying the player token as its `value` and **all unchecked** on every render.
+When there are no candidates (no previous current season, or that season has an
+empty roster), it renders a single "no players to import" note instead of
+checkboxes, and season creation is still allowed and produces an empty roster
+(Req 4.3). Example rendered shape:
+
+```html
+<!-- one row per Import_Candidate, all unchecked (Req 4.2) -->
+<label class="import-row">
+  <input type="checkbox" class="import-player" value="{playerToken}"> {Player Name}
+</label>
+<!-- ...or, when there are no candidates (Req 4.3): -->
+<p class="muted">No players to import.</p>
+```
+
+### 1a. Backend: `createYear` accepts selected tokens (`apps-script`)
+
+This is the single backend change. Today `createYear_(label)` validates and
+dedupes the label, captures `previousCurrent`, calls `setAllYearsNotCurrent_()`,
+appends the new Years row, and then **unconditionally** carries the entire
+previous current-season roster forward via
+`copyPlayerYearRoster_(previousCurrent.YearID, yearId)`. That full carry-forward
+is replaced by rostering only the tokens the Admin selected.
+
+**`Code.gs` — pass the token list through.** The `doPost` `'createYear'` case
+still calls `requireSession_(body.session)` and still returns
+`jsonOut_(...)`; it just forwards the new field:
+
+```js
+case 'createYear':
+  requireSession_(body.session);
+  return jsonOut_(createYear_(body.label, body.playerTokens));
+```
+
+**`Years.gs` — `createYear_(label, playerTokens)`.** Everything up to and
+including appending the new Years row is unchanged (label trim + required check,
+duplicate-label check, `previousCurrent` capture is no longer needed for the
+carry-forward but is harmless if left; `setAllYearsNotCurrent_()`; append the new
+row with `IsCurrent: true`). The one behavioral change is the roster step:
+
+```js
+function createYear_(label, playerTokens) {
+  label = (label || '').toString().trim();
+  if (!label) throw new Error('Year label is required.');
+  var existing = listYears_();
+  if (existing.some(function (y) { return y.Label === label; })) {
+    throw new Error('A year called "' + label + '" already exists.');
+  }
+
+  setAllYearsNotCurrent_();
+  var yearId = Utilities.getUuid();
+  appendObject_(SHEET_YEARS, {
+    YearID: yearId,
+    Label: label,
+    IsCurrent: true,
+    CreatedAt: new Date()
+  });
+
+  // Roster ONLY the selected players onto the new season (Req 4.8). An empty or
+  // omitted list rosters nobody -> empty-roster season (Req 4.3). addPlayerToYear_
+  // is idempotent, so duplicate tokens in the request are harmless.
+  var tokens = Array.isArray(playerTokens) ? playerTokens : [];
+  tokens.forEach(function (token) {
+    if (token) addPlayerToYear_(token, yearId);
+  });
+
+  return { yearId: yearId, label: label };
+}
+```
+
+- **Selected-subset rostering (Req 4.8):** the new season's roster contains
+  exactly the provided tokens. `addPlayerToYear_` already no-ops on duplicates,
+  so it is safe against repeated tokens.
+- **Empty/omitted list (Req 4.3):** when `playerTokens` is `[]` or missing, no
+  `PlayerYears` rows are created and the season starts empty.
+- **No full carry-forward:** the previous `if (previousCurrent) copyPlayerYearRoster_(...)`
+  line is **removed**. There is deliberately **no fallback** to the old
+  full-carry behavior, because that would contradict Req 4.8 / Req 8.1.
+
+**Backward-compatibility note (accepted behavior change).** Because the fallback
+is intentionally dropped, an *older deployed frontend* that calls `createYear`
+without `playerTokens` would now create an **empty roster** instead of carrying
+the previous roster forward. This is an accepted behavior change: the frontend
+and backend must be deployed **together** (the single coordinated redeploy of
+Req 8.4). This is why the redeploy is required and why the token list is not
+treated as optional-with-legacy-semantics.
+
+**Dead code cleanup.** `copyPlayerYearRoster_` in `PlayerYears.gs` was called
+**only** from `createYear_`. Once the carry-forward line is removed it has no
+remaining callers, so it becomes dead code. Recommendation: **remove
+`copyPlayerYearRoster_`** to avoid leaving an unused helper that implies the old
+behavior still exists. (`addPlayerToYear_` and `isPlayerInYear_` stay — they are
+used elsewhere and by the new roster loop.)
 
 ### 2. CSS (`assets/css/styles.css`)
 
@@ -321,10 +448,12 @@ below.
 No `els` entries are removed. `setCurrentYearBtn`, `newYearLabel`,
 `createYearBtn`, `addExistingSelect`, `addExistingBtn`, and `addExistingMessage`
 keep the same IDs, so their `getElementById` lookups resolve unchanged after the
-markup moves — no `els` edits are required for the relocation. The only decision
-is whether to add an `els.settingsSection` reference; it is **not needed**
-because nothing in JS toggles the section (the browser does), so we leave the
-`els` map as-is aside from the removed standalone card wrapper (which had no ID).
+markup moves — no `els` edits are required for the relocation. `els.settingsSection`
+is **not** added because nothing in JS toggles the section (the browser does).
+
+**One new `els` entry:** `els.importPlayersList = document.getElementById('importPlayersList')`
+— the container for the Import_Candidates checklist. It is written to by
+`renderImportCandidates()` and read by `collectImportSelection()`.
 
 ### 6. Interaction wiring
 
@@ -346,7 +475,7 @@ sequenceDiagram
   Store-->>JS: storedId | null (guarded)
   JS->>JS: resolveViewingYearId(data.years, storedId, isCurrentYearRow)
   JS->>Sel: set options + value = resolved id
-  JS->>JS: syncSetCurrentYearBtn() / populateAddExistingSelect()
+  JS->>JS: syncSetCurrentYearBtn() / populateAddExistingSelect() / renderImportCandidates()
 
   U->>Sel: change viewing season
   Sel->>JS: change handler
@@ -354,10 +483,11 @@ sequenceDiagram
   JS->>JS: renderTeamTiles / renderRoster / populateAddExistingSelect / syncSetCurrentYearBtn
 
   U->>JS: Create New Season (in Settings)
-  JS->>API: createYear
-  API-->>JS: { yearId }
+  JS->>JS: collectImportSelection() -> playerTokens[]
+  JS->>API: createYear { label, playerTokens }
+  API-->>JS: { yearId, label }
   JS->>Store: writeViewingYearId(yearId)
-  JS->>JS: selectedYearId = yearId; refresh()
+  JS->>JS: selectedYearId = yearId; refresh() (re-renders checklist unchecked)
 ```
 
 Function-by-function:
@@ -371,9 +501,63 @@ Function-by-function:
 - **`#yearSelect` change handler** — unchanged except it now calls
   `Store.writeViewingYearId(selectedYearId)` right after setting
   `selectedYearId` (Req 3.1), before any re-render, so the next load can read it.
-- **`createYearBtn` handler** — unchanged except `selectedYearId = result.yearId`
-  is followed by `Store.writeViewingYearId(result.yearId)` (Req 3.5). It already
-  sets the new season as viewing and calls `refresh()`.
+- **`renderImportCandidates()`** *(new)* — computes the Import_Candidates from
+  the season currently marked current and renders one **unchecked** checkbox per
+  candidate into `#importPlayersList` (Req 4.2), or a "no players to import" note
+  when there are none (Req 4.3). "Previous current season" here means whichever
+  season `isCurrentYearRow` is `true` for **at the moment of rendering**, i.e.
+  before the new season is created — this matches the backend's `previousCurrent`.
+  The candidate computation itself is delegated to the pure
+  `AdminLogic.importCandidatesFrom(data.players, data.playerYears, currentYearId)`
+  helper (name-sorted); this function only renders the returned rows:
+
+  ```js
+  // Render the previous current season's roster as an all-unchecked import
+  // checklist (Req 4.2/4.3). "Current" is whatever isCurrentYearRow is true for
+  // right now, matching the backend's previousCurrent.
+  function renderImportCandidates() {
+    const currentYear = (data.years || []).find(isCurrentYearRow);
+    const candidates = currentYear
+      ? AdminLogic.importCandidatesFrom(data.players, data.playerYears, currentYear.YearID)
+      : [];
+    els.importPlayersList.innerHTML = candidates.length
+      ? candidates.map((p) =>
+          `<label class="import-row"><input type="checkbox" class="import-player" ` +
+          `value="${escapeHtml(p.Token)}"> ${escapeHtml(p.Name)}</label>`).join('')
+      : '<p class="muted">No players to import.</p>';
+  }
+  ```
+
+  It is called wherever the Settings create controls render/refresh — from
+  `refresh()` (alongside `populateAddExistingSelect()`) — so the list always
+  reflects the current data (Req 4.2). Re-rendering resets every box to unchecked.
+
+- **`collectImportSelection()`** *(new)* — reads the checked boxes and returns
+  the array of selected tokens (the Import_Selection), possibly empty (Req 4.4,
+  4.8):
+
+  ```js
+  function collectImportSelection() {
+    return Array.from(els.importPlayersList.querySelectorAll('.import-player:checked'))
+      .map((cb) => cb.value);
+  }
+  ```
+
+- **`createYearBtn` handler** — the trimmed-empty guard is unchanged. On submit it
+  now includes `playerTokens: collectImportSelection()` in the `createYear`
+  payload (Req 4.4). On **success**: clear the label, reset the checklist (via
+  `refresh()` → `renderImportCandidates()`, which re-renders all-unchecked), set
+  `selectedYearId = result.yearId`, `Store.writeViewingYearId(result.yearId)`
+  (Req 3.5), `refresh()`, and show the confirmation. On **error**: show the
+  backend reason and **retain both** the entered label and the current checklist
+  selection (Req 4.10) — i.e. do not clear the label and do not re-render the
+  checklist, so the Admin can retry without re-picking players. `UI.withBusy`
+  re-enables the button.
+
+  ```js
+  const result = await UI.withBusy(els.createYearBtn, 'Creating…', () =>
+    Api.post({ action: 'createYear', session, label, playerTokens: collectImportSelection() }));
+  ```
 - **`syncSetCurrentYearBtn()`** — unchanged. It toggles `#setCurrentYearBtn`
   hidden when the viewing season is current (Reqs 5.2/5.3). It now lives inside
   Settings but the logic is identical; hiding the button inside a collapsed
@@ -384,7 +568,9 @@ Function-by-function:
   all-rostered message when empty (Reqs 6.1–6.3).
 - **`showDashboard()` / `refresh()`** — unchanged in structure. `refresh()` still
   calls `populateYearSelect()`, `renderTeamTiles()`, `renderRoster()`,
-  `populateAddExistingSelect()`. The load spinner and try/finally are untouched.
+  `populateAddExistingSelect()`, and now also `renderImportCandidates()` so the
+  import checklist reflects the current data (and resets to all-unchecked) after
+  every refresh. The load spinner and try/finally are untouched.
 
 ### 7. Storage-failure notice (Req 3.7)
 
@@ -420,9 +606,18 @@ Existing in-memory shapes are reused unchanged:
 - **`data.playerYears[]`** — `{ YearID, PlayerToken }` roster associations,
   used by `rosterTokensForYear`/`populateAddExistingSelect`.
 
-Backend request/response contracts for `createYear`, `setCurrentYear`,
-`addPlayerToYear`, `removePlayerFromYear`, and `adminData` are unchanged (Req
-8.1, 8.2).
+Backend contracts: the `createYear` **request** is extended with one field —
+`playerTokens: string[]` (the Import_Selection; may be empty). Its **response**
+is unchanged (`{ yearId, label }`). The request/response contracts for
+`setCurrentYear`, `addPlayerToYear`, `removePlayerFromYear`, and `adminData` are
+unchanged (Req 8.1, 8.2). There is **no sheet schema change**: `PlayerYears`
+rows are still created the same way (via `addPlayerToYear_`), just for the chosen
+subset of players rather than the entire previous roster.
+
+The import checklist consumes existing in-memory shapes only — `data.players[]`
+(`{ Token, Name }`) filtered against `data.playerYears[]` (`{ YearID, PlayerToken }`)
+for the current `YearID`; no new client-side stored artifact is introduced beyond
+the transient checked state of the checkboxes.
 
 ## Correctness Properties
 
@@ -430,7 +625,7 @@ Backend request/response contracts for `createYear`, `setCurrentYear`,
 
 Most acceptance criteria in this feature are DOM-relocation, CSS, or backend-call
 wiring concerns that are verified by example/manual checks (see Testing
-Strategy). Two pieces contain genuine input-varying logic that is pure and
+Strategy). Three pieces contain genuine input-varying logic that is pure and
 amenable to property-based testing:
 
 1. `resolveViewingYearId(years, storedId, isCurrent)` — the season-selection
@@ -438,6 +633,16 @@ amenable to property-based testing:
 2. The add-existing candidate computation (Reqs 6.1–6.3) — the set-difference +
    sort that `populateAddExistingSelect()` performs, extracted as a pure helper
    `existingPlayerCandidates(players, rosterTokens)` for testability.
+3. The import-candidate computation (Reqs 4.2, 4.3, 4.8) — the previous
+   current-season roster lookup + name sort behind `renderImportCandidates()`,
+   extracted as a pure helper `importCandidatesFrom(players, playerYears,
+   currentYearId)` so the checklist's *input* is testable without a DOM.
+
+The import-*selection* correctness end-to-end (new season roster ==
+Import_Selection) lives in Apps Script (`createYear_`), which is not economically
+PBT-able in this project; that invariant is covered by the backend unit reasoning
+in section 1a and by manual verification (see Testing Strategy). What *is* pure —
+and worth a property — is the candidate list that feeds the checklist.
 
 ### Property 1: Season selection honors precedence
 
@@ -469,6 +674,19 @@ control).
 
 **Validates: Requirements 6.1, 6.2, 6.3**
 
+### Property 4: Import candidates are exactly the previous-current roster, name-sorted
+
+*For any* set of globally-existing players, any set of `PlayerYears` roster
+associations, and any current `YearID`, `importCandidatesFrom(players,
+playerYears, currentYearId)` returns exactly the players rostered to that
+`YearID` (i.e. those with a matching `PlayerYears` row), ordered ascending by
+`Name`, with no player outside that roster included and no player in that roster
+omitted; when the roster for `currentYearId` is empty (or `currentYearId` matches
+no roster row) the result is the empty list (the boundary case that renders the
+"no players to import" note and permits an empty-roster season).
+
+**Validates: Requirements 4.2, 4.3, 4.8**
+
 ## Error Handling
 
 All backend calls reuse `Api.post` for the request and `UI.withBusy(button,
@@ -479,7 +697,7 @@ report outcomes. No new error-handling primitive is introduced.
 
 | Action | Trigger | Success | Failure | Message target | Requirement |
 | --- | --- | --- | --- | --- | --- |
-| `createYear` | Create New Season button | clear label, set new season as viewing, write store, `refresh()`, success message naming the label | show backend reason, **retain** the entered label, re-enable button (via `withBusy` finally) | `#yearMessage` | 4.5–4.7 |
+| `createYear` | Create New Season button (sends `label` + `playerTokens` = Import_Selection) | clear label, reset checklist (all-unchecked via `refresh()`), set new season as viewing, write store, `refresh()`, success message naming the label | show backend reason, **retain** the entered label **and the checklist selection**, re-enable button (via `withBusy` finally) | `#yearMessage` | 4.5–4.10 |
 | `setCurrentYear` | Make This the Current Season button | `refresh()`, `(Current)` marker moves to viewing season | show error, viewing selection unchanged, prior current unchanged (no local mutation before the awaited call) | `#yearMessage` | 5.6, 5.7 |
 | `addPlayerToYear` | Add to Season button | `refresh()`, added player appears in roster | show error, selector left available for retry | `#addExistingMessage` | 6.6, 6.7 |
 | `removePlayerFromYear` | Remove from Season button (player detail, unchanged) | `refresh()`, player leaves roster | show error, player left rostered | `alert()` (existing behavior) | 7.3, 7.5 |
@@ -488,7 +706,13 @@ report outcomes. No new error-handling primitive is introduced.
 Client-side guards (no backend call):
 
 - **Empty/whitespace create label** — trimmed-empty label shows a validation
-  message in `#yearMessage` and skips `Api.post` (Req 4.4).
+  message in `#yearMessage` and skips `Api.post` (Req 4.4, 4.6).
+- **Zero players selected for import** — a valid label with **no** checked
+  candidates is a valid request: `playerTokens` is `[]` and the backend creates
+  the season with an **empty roster** (Req 4.3, 4.8). Likewise, when there are no
+  Import_Candidates at all the checklist shows the "no players to import" note and
+  creation still proceeds to an empty-roster season. This is normal flow, not an
+  error.
 - **No existing player selected** — `if (!token) return` in the add handler
   takes no action and issues no request (Req 6.5).
 - **Empty season list** — `populateYearSelect()` renders the existing actionable
@@ -513,6 +737,11 @@ take all inputs as arguments and touch neither `document` nor `localStorage`:
 - `existingPlayerCandidates(players, rosterTokens)` — the set-difference + sort
   that `populateAddExistingSelect()` currently inlines; `populateAddExistingSelect`
   then just renders the array this returns.
+- `importCandidatesFrom(players, playerYears, currentYearId)` — the
+  previous-current roster lookup + name sort behind `renderImportCandidates()`;
+  `renderImportCandidates()` then just renders the (all-unchecked) checkbox rows
+  for the array this returns. Lives in `assets/js/admin-logic.js` alongside the
+  other two helpers.
 
 Structuring for testability without a build step: expose these helpers on a
 plain namespace (e.g. attach to a `window.AdminLogic` object, or move them to a
@@ -545,6 +774,12 @@ Generators needed:
 - **Players + roster generator** — random player objects `{ Token, Name }` with
   possibly duplicate/edge names, and a random subset of tokens as the roster set
   (including the all-rostered and none-rostered boundaries).
+- **Players + PlayerYears + currentYearId generator** (for `importCandidatesFrom`)
+  — random players `{ Token, Name }`, random `PlayerYears` rows
+  `{ YearID, PlayerToken }` spanning several `YearID`s (some matching the chosen
+  `currentYearId`, some not), and a `currentYearId` that is sometimes present in
+  the associations and sometimes absent (to exercise the empty-result boundary of
+  Req 4.3). Include the no-players and empty-roster cases.
 
 Property test coverage:
 
@@ -557,6 +792,11 @@ Property test coverage:
   `existingPlayerCandidates(players, roster)` equals the non-rostered players
   sorted ascending by `Name`; assert no rostered token appears; assert the
   empty-result boundary when all players are rostered.
+- **Property 4 (import candidates)** — assert
+  `importCandidatesFrom(players, playerYears, currentYearId)` equals exactly the
+  players rostered to `currentYearId` sorted ascending by `Name`; assert no
+  player outside that roster appears and none in it is omitted; assert the
+  empty-result boundary when `currentYearId` has no roster rows.
 
 ### Unit / example tests
 
@@ -588,7 +828,15 @@ the live Apps Script backend:
 4. **Create season (Req 4):** empty/whitespace label is rejected with a
    validation message and no request; a valid label creates, clears the input,
    selects the new season, persists it, and shows a confirmation; a backend error
-   shows the reason, keeps the label, and re-enables the button.
+   shows the reason, keeps the label **and the checklist selection**, and
+   re-enables the button.
+   - **Import checklist (Req 4.2/4.3/4.8):** on render/expand, the checklist
+     lists the previous current season's roster with **every box unchecked**;
+     selecting a subset and creating rosters **exactly those** players onto the
+     new season and no others; creating with **zero** boxes checked produces an
+     **empty-roster** season; when the previous current season has no roster (or
+     there is no current season), a **"no players to import"** note shows and
+     creation still yields an empty-roster season.
 5. **Make current (Req 5):** button hidden when viewing the current season, shown
    otherwise; success moves the `(Current)` marker; error leaves state unchanged.
 6. **Add existing player (Req 6):** selector lists only non-rostered players
@@ -599,4 +847,9 @@ the live Apps Script backend:
    from Settings; removal updates the roster; error leaves the player rostered.
 8. **Contract preservation (Req 8):** with Settings collapsed the dashboard still
    scopes to the viewing season; the empty-season redeploy message still shows;
-   no files under `apps-script/` are modified.
+   the **only** modified backend action is `createYear` (extended request with
+   `playerTokens`) — `setCurrentYear`, `addPlayerToYear`, `removePlayerFromYear`,
+   and `adminData` are untouched, and no action is added/renamed/removed;
+   confirm a **single** Apps Script redeploy applies the change and that the
+   frontend + backend are deployed together (an old frontend against the new
+   backend would create empty-roster seasons — see the backward-compat note).

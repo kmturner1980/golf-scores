@@ -344,3 +344,121 @@ th.clickable:hover { color: var(--navy); }
   margin-bottom: 0;
 }
 .entry-mode-row input[type="radio"] { width: auto; }
+
+/* ---------------------------------------------------------------------------
+ * Admin Roster — responsive collapsible cards
+ *
+ * The admin Roster (`#rosterTable`) emits two coexisting layouts per group: the
+ * existing 11-column sortable `.table-scroll` table and a `.roster-cards` block
+ * of collapsible `<details class="roster-card">` cards. Visibility is toggled
+ * purely by the media query below (the project's first).
+ *
+ * DEFAULT (wide / desktop, > 640px): the table is shown as-is and the cards are
+ * hidden. All selectors here are scoped to the roster-specific `.roster-card*` /
+ * `.roster-cards` classes (or `#rosterTable`), so no other table — player-detail
+ * Rounds, public Recent Rounds, Team Totals — is affected.
+ * ------------------------------------------------------------------------- */
+.roster-cards { display: none; }
+
+/* Card shell: reuses the .card visual system (white surface, brand border,
+   brand radius). No fixed widths, so cards are always full-width and never
+   overflow horizontally. */
+.roster-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.6rem;
+}
+.roster-card + .roster-card { margin-top: 0; }
+
+/* Always-visible header row — the tap target. Generous padding + min-height
+   keep it comfortable on touch; a custom triangle marker gives a visible
+   open/closed affordance (matching the Settings disclosure pattern). */
+.roster-card-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 0.85rem;
+  min-height: 44px;
+}
+.roster-card-summary::-webkit-details-marker { display: none; }
+.roster-card-summary::before {
+  content: "\25B8";              /* right triangle when collapsed */
+  color: var(--gold);
+  transition: transform 0.15s ease;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.roster-card[open] > .roster-card-summary::before {
+  transform: rotate(90deg);      /* points down when expanded */
+}
+
+.roster-card-name {
+  font-weight: 700;
+  color: var(--navy);
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;        /* long names wrap instead of overflowing */
+}
+
+/* Collapsed meta (Avg /18, Rounds, status) sits to the right of the name and
+   wraps below it on very narrow (~320px) viewports rather than overflowing. */
+.roster-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.roster-card-stat { white-space: nowrap; }
+.roster-card-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* Expanded body: one label-left / value-right row per remaining stat. */
+.roster-card-body {
+  padding: 0.25rem 0.85rem 0.8rem;
+  border-top: 1px solid var(--border);
+}
+.roster-card-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.roster-card-row:last-of-type { border-bottom: none; }
+.roster-card-row .roster-card-label { align-self: center; }
+.roster-card-value {
+  color: var(--navy);
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+.roster-card-detail { margin-top: 0.7rem; width: 100%; }
+
+/* ---------------------------------------------------------------------------
+ * Mobile breakpoint (project's FIRST @media rule): below 640px swap the roster
+ * layouts. Scoped so ONLY the admin roster is affected:
+ *   - `#rosterTable .table-scroll` hides the per-group table wrappers injected
+ *     INSIDE the roster container. It is a descendant selector rooted at
+ *     `#rosterTable`, so it does NOT match the player-detail Rounds table,
+ *     public Recent Rounds table, or any other `.table-scroll` user (Req 3.4).
+ *     A bare `.table-scroll { display:none }` here would wrongly hide those.
+ *   - `.roster-cards` (a roster-only class) is shown.
+ * The desktop path (> 640px) is untouched, preserving Reqs 3.1–3.3.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  #rosterTable .table-scroll { display: none; }
+  .roster-cards { display: block; }
+}

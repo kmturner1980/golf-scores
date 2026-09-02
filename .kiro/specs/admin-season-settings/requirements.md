@@ -20,10 +20,18 @@ This feature separates two distinct concerns:
 
 The Settings area is structured as a generic container so additional admin
 settings can be added later, but this feature scopes its content to season
-management only. The solution is frontend-only: no Google Apps Script backend
-actions are added or changed, and all existing backend actions
-(`createYear`, `setCurrentYear`, `addPlayerToYear`, `removePlayerFromYear`,
-`adminData`) are reused as-is. The feature also introduces persistence of the
+management only. The feature also lets the Admin choose, when creating a new
+season, which players from the previous current season's roster to import onto
+the new season instead of always carrying the entire roster forward.
+
+This solution is primarily frontend, with one backend change: the existing
+`createYear` action is extended to accept a list of selected player tokens and
+to roster only those players onto the new season (no selection results in an
+empty roster), replacing the current behavior in which `createYear` always
+copies the full previous current-season roster. This single change requires one
+Google Apps Script redeploy. All other existing backend actions
+(`setCurrentYear`, `addPlayerToYear`, `removePlayerFromYear`, `adminData`) are
+reused as-is, unchanged. The feature also introduces persistence of the
 last-viewed season across sessions.
 
 ## Glossary
@@ -46,6 +54,11 @@ last-viewed season across sessions.
   PlayerYears association (a player rostered to a Season via a PlayerYears row).
 - **Existing_Player**: A player that exists globally in the backend but is not
   rostered to the Viewing_Season.
+- **Import_Candidates**: The Roster of the previous Current_Season — the players
+  rostered to whichever Season was the Current_Season immediately before a new
+  Season is created — offered to the Admin for import onto the new Season.
+- **Import_Selection**: The subset of Import_Candidates that the Admin selects to
+  roster onto the newly created Season. The Import_Selection may be empty.
 - **Admin**: The single coach/administrator authenticated via the shared admin
   password.
 - **Viewing_Season_Store**: The browser `localStorage` entry that persists the
@@ -105,12 +118,15 @@ area, so that season creation is available but out of the way during normal use.
 #### Acceptance Criteria
 
 1. THE Settings_Area SHALL provide a Season label input that accepts 1 to 100 characters and a create control for creating a new Season.
-2. WHEN the Admin activates the create control WHILE the Season label input contains at least one non-whitespace character after trimming, THE Settings_Area SHALL submit the trimmed label to the backend `createYear` action.
-3. WHILE a submitted `createYear` request is in progress, THE Settings_Area SHALL disable the create control and SHALL NOT submit an additional create request.
-4. IF the Admin activates the create control WHILE the Season label input is empty or contains only whitespace after trimming, THEN THE Settings_Area SHALL display a validation message indicating a label is required and SHALL NOT submit the create request.
-5. WHEN the backend confirms creation of a new Season, THE Dashboard SHALL set the newly created Season as the Viewing_Season and reload season data so that the new Season appears selected in the Viewing_Season selector.
-6. WHEN the backend confirms creation of a new Season, THE Settings_Area SHALL clear the Season label input and display a confirmation message identifying the created Season.
-7. IF the backend returns an error during Season creation, THEN THE Settings_Area SHALL display an error message indicating the reason returned by the backend, SHALL retain the entered label in the Season label input, and SHALL re-enable the create control.
+2. WHEN the create controls are rendered or expanded, THE Settings_Area SHALL present a checklist of the Import_Candidates with every entry unchecked.
+3. WHERE no Import_Candidates exist, THE Settings_Area SHALL display an indication that there are no players to import and SHALL allow creation of a Season with an empty Roster.
+4. WHEN the Admin activates the create control WHILE the Season label input contains at least one non-whitespace character after trimming, THE Settings_Area SHALL submit the trimmed label and the Import_Selection to the backend `createYear` action.
+5. WHILE a submitted `createYear` request is in progress, THE Settings_Area SHALL disable the create control and SHALL NOT submit an additional create request.
+6. IF the Admin activates the create control WHILE the Season label input is empty or contains only whitespace after trimming, THEN THE Settings_Area SHALL display a validation message indicating a label is required and SHALL NOT submit the create request.
+7. WHEN the backend confirms creation of a new Season, THE Dashboard SHALL set the newly created Season as the Viewing_Season and reload season data so that the new Season appears selected in the Viewing_Season selector.
+8. WHEN the backend confirms creation of a new Season, THE new Season's Roster SHALL contain exactly the players in the Import_Selection.
+9. WHEN the backend confirms creation of a new Season, THE Settings_Area SHALL clear the Season label input and display a confirmation message identifying the created Season.
+10. IF the backend returns an error during Season creation, THEN THE Settings_Area SHALL display an error message indicating the reason returned by the backend, SHALL retain the entered label in the Season label input, SHALL retain the Import_Selection in the checklist, and SHALL re-enable the create control.
 
 ### Requirement 5: Mark a Season as current from Settings
 
@@ -160,15 +176,18 @@ tied to the specific player I am viewing.
 
 ### Requirement 8: Preserve existing behavior and backend contract
 
-**User Story:** As the Admin, I want the relocation of season controls to change
-only where the controls live, so that season behavior and the backend remain
-unchanged and no Apps Script redeploy is required.
+**User Story:** As the Admin, I want the relocation of season controls and the
+new season-import capability to change only the `createYear` action, so that all
+other season behavior and backend actions remain unchanged and only a single
+Apps Script redeploy is required.
 
 #### Acceptance Criteria
 
-1. THE feature SHALL reuse the existing backend actions `createYear`, `setCurrentYear`, `addPlayerToYear`, `removePlayerFromYear`, and `adminData` without modifying their request or response contracts.
-2. THE feature SHALL NOT add, rename, or remove any Google Apps Script backend action.
-3. WHILE the Settings_Area is collapsed, THE Dashboard SHALL scope the Team Totals section, the Roster section, and the player detail section to the Viewing_Season.
-4. IF the loaded season list is empty, THEN THE Dashboard SHALL display the existing actionable message about redeploying the backend.
-5. WHEN the Admin adds a new player, THE Dashboard SHALL attach that player to the Current_Season independent of the Viewing_Season.
-6. WHEN a player submits a new round, THE Dashboard SHALL attach that round to the Current_Season independent of the Viewing_Season.
+1. THE feature SHALL modify only the `createYear` backend action, extending its request contract to accept the Import_Selection so that the new Season is rostered with exactly the selected player tokens.
+2. THE feature SHALL reuse the existing backend actions `setCurrentYear`, `addPlayerToYear`, `removePlayerFromYear`, and `adminData` without modifying their request or response contracts.
+3. THE feature SHALL NOT add, rename, or remove any Google Apps Script backend action.
+4. THE feature SHALL require exactly one Google Apps Script redeploy to apply the `createYear` change.
+5. WHILE the Settings_Area is collapsed, THE Dashboard SHALL scope the Team Totals section, the Roster section, and the player detail section to the Viewing_Season.
+6. IF the loaded season list is empty, THEN THE Dashboard SHALL display the existing actionable message about redeploying the backend.
+7. WHEN the Admin adds a new player, THE Dashboard SHALL attach that player to the Current_Season independent of the Viewing_Season.
+8. WHEN a player submits a new round, THE Dashboard SHALL attach that round to the Current_Season independent of the Viewing_Season.

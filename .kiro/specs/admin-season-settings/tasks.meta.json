@@ -1,5 +1,10 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "1.7 Write property test for import candidates": {
+      "status": "passed",
+      "lastRunTimestamp": 1788387048712
+    }
+  },
   "executionHistory": {
     "1.1 Create `assets/js/admin-logic.js` with the pure helpers and namespace": [
       {
@@ -108,6 +113,11 @@
         "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
         "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
         "timestamp": 1788364565495
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387358537
       }
     ],
     "3.2 Add the collapsed-by-default Settings disclosure and relocate controls": [
@@ -320,6 +330,180 @@
         "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
         "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
         "timestamp": 1788365217709
+      }
+    ],
+    "1.6 Add `importCandidatesFrom` pure helper to `assets/js/admin-logic.js`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820407
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386905514
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386975485
+      }
+    ],
+    "1.7 Write property test for import candidates": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820473
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386982764
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387065715
+      }
+    ],
+    "3.3 Add the Import_Candidates checklist container to the Create New Season block": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820530
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387070437
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387111269
+      }
+    ],
+    "6.3 Add `els.importPlayersList` and `renderImportCandidates()`, call from `refresh()`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820578
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387116390
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387211554
+      }
+    ],
+    "6.4 Add `collectImportSelection()`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820627
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387214995
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387260213
+      }
+    ],
+    "6.5 Send `playerTokens` in the create payload and handle success/error retention": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820674
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387263824
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387336184
+      }
+    ],
+    "8.1 Pass `playerTokens` through in `apps-script/Code.gs`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820729
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386830493
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386898211
+      }
+    ],
+    "8.2 Roster only the provided tokens in `apps-script/Years.gs` `createYear_`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820775
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386831834
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386900767
+      }
+    ],
+    "8.3 Remove the now-unused `copyPlayerYearRoster_` helper in `apps-script/PlayerYears.gs`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820831
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386833671
+      },
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386901212
+      }
+    ],
+    "10. Manual verification checklist (DOM, localStorage, live backend)": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386820899
+      }
+    ],
+    "8. Change the backend `createYear` action to roster only selected tokens": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788386901312
+      }
+    ],
+    "3. Relocate season markup in `admin.html`": [
+      {
+        "executionId": "751370fc-2cc3-4a28-93d7-b3de52432f1d",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788387358608
       }
     ]
   }

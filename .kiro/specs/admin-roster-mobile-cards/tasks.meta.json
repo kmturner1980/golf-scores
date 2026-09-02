@@ -1,0 +1,131 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration check (mobile horizontal-overflow)": {
+      "status": "passed",
+      "failingExample": "Bug REPRODUCED on unfixed code (success case for an exploration check). At a 390px mobile viewport, a roster group's `.table-scroll` wrapper satisfies `el.scrollWidth > el.clientWidth`: scrollWidth ~700-875px vs clientWidth ~310-358px. The 11 no-wrap columns (Name, Rounds, Avg/18, Avg Diff, Fairway %, GIR %, Putts/18, Birdies+, Doubles, Worse, Status) total ~700px+ intrinsic width — more than double the ~310px usable container — so `.table-scroll` (overflow-x:auto) scrolls horizontally and the rightmost columns (Worse, Status) are off-screen. A single-player group reproduces identically since column widths, not row count, drive the overflow. Root cause confirmed: 11 `white-space:nowrap` columns in `rosterTableHtml`/`ROSTER_COLUMNS` inside `.table-scroll{overflow-x:auto}` with NO `@media` breakpoints in styles.css (grep for @media returns zero matches).",
+      "lastRunTimestamp": 1788389741192
+    },
+    "3.3 Verify bug condition exploration check now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1788390580897
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration check (mobile horizontal-overflow)": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632496
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389638564
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389761840
+      }
+    ],
+    "2. Write preservation checks (BEFORE implementing fix)": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632535
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389766095
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390247748
+      }
+    ],
+    "3.1 Add mobile card layout to the roster renderer": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632569
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390252856
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390364636
+      }
+    ],
+    "3.2 Add the mobile breakpoint and card styles in CSS": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632601
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390490837
+      }
+    ],
+    "3.3 Verify bug condition exploration check now passes": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632661
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390495723
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390602388
+      }
+    ],
+    "3.4 Verify preservation checks still pass": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632690
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390606155
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390693333
+      }
+    ],
+    "4. Checkpoint - Ensure all checks pass": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788389632719
+      },
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390699242
+      }
+    ],
+    "3. Fix admin Roster horizontal-overflow with responsive collapsible cards": [
+      {
+        "executionId": "6b4c4278-a859-4db7-b452-05d13ed93bda",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788390693365
+      }
+    ]
+  }
+}

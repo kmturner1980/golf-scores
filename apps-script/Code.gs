@@ -73,7 +73,7 @@ function doPost(e) {
 
       case 'createYear':
         requireSession_(body.session);
-        return jsonOut_(createYear_(body.label));
+        return jsonOut_(createYear_(body.label, body.playerTokens));
 
       case 'setCurrentYear':
         requireSession_(body.session);

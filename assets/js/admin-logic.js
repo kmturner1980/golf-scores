@@ -66,9 +66,34 @@
       .sort(function (a, b) { return String(a.Name).localeCompare(String(b.Name)); });
   }
 
+  // Pure previous-current roster lookup + sort behind renderImportCandidates():
+  // given the globally-existing players, the PlayerYears roster associations, and
+  // the current season's YearID, return exactly the players rostered to that
+  // season (i.e. those whose Token matches a PlayerYears row with that YearID),
+  // ordered ascending by Name. No player outside that roster is included; no
+  // player in it is omitted. Returns an empty array when currentYearId has no
+  // matching PlayerYears rows or matches nothing; missing/empty players or
+  // playerYears are treated as empty inputs. No DOM, no storage.
+  //   players:       array of { Token, Name }
+  //   playerYears:   array of { YearID, PlayerToken } roster associations
+  //   currentYearId: the YearID of the previous current season
+  function importCandidatesFrom(players, playerYears, currentYearId) {
+    var list = Array.isArray(players) ? players : [];
+    var years = Array.isArray(playerYears) ? playerYears : [];
+    var rostered = new Set(
+      years
+        .filter(function (r) { return r && r.YearID === currentYearId; })
+        .map(function (r) { return r.PlayerToken; })
+    );
+    return list
+      .filter(function (p) { return rostered.has(p.Token); })         // Reqs 4.2, 4.3
+      .sort(function (a, b) { return String(a.Name).localeCompare(String(b.Name)); }); // Req 4.8
+  }
+
   return {
     isCurrentYearRow: isCurrentYearRow,
     resolveViewingYearId: resolveViewingYearId,
-    existingPlayerCandidates: existingPlayerCandidates
+    existingPlayerCandidates: existingPlayerCandidates,
+    importCandidatesFrom: importCandidatesFrom
   };
 });

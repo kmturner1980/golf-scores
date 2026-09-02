@@ -38,20 +38,18 @@ function setAllYearsNotCurrent_() {
 }
 
 /**
- * Admin-only: creates a new year, makes it the current one, and carries
- * forward the roster from whatever was current before (so returning
- * players don't have to be re-added every season -- the admin removes the
- * exceptions, e.g. a graduated senior, from the admin dashboard instead).
+ * Admin-only: creates a new year, makes it the current one, and rosters only
+ * the players the admin selected (via playerTokens) onto the new season. An
+ * empty or omitted token list rosters nobody -> the season starts empty. This
+ * replaces the old unconditional full carry-forward of the previous roster.
  */
-function createYear_(label) {
+function createYear_(label, playerTokens) {
   label = (label || '').toString().trim();
   if (!label) throw new Error('Year label is required.');
   var existing = listYears_();
   if (existing.some(function (y) { return y.Label === label; })) {
     throw new Error('A year called "' + label + '" already exists.');
   }
-
-  var previousCurrent = existing.filter(isCurrentYearRow_)[0];
 
   setAllYearsNotCurrent_();
   var yearId = Utilities.getUuid();
@@ -62,7 +60,13 @@ function createYear_(label) {
     CreatedAt: new Date()
   });
 
-  if (previousCurrent) copyPlayerYearRoster_(previousCurrent.YearID, yearId);
+  // Roster ONLY the selected players onto the new season (Req 4.8). An empty or
+  // omitted list rosters nobody -> empty-roster season (Req 4.3). addPlayerToYear_
+  // is idempotent, so duplicate tokens in the request are harmless.
+  var tokens = Array.isArray(playerTokens) ? playerTokens : [];
+  tokens.forEach(function (token) {
+    if (token) addPlayerToYear_(token, yearId);
+  });
 
   return { yearId: yearId, label: label };
 }

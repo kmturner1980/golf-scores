@@ -2,7 +2,7 @@
   // Pure logic helpers live in assets/js/admin-logic.js (loaded before this
   // file) so they can be unit- and property-tested with no DOM. Destructure
   // them here for use by the season-selection wiring below.
-  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates } = window.AdminLogic;
+  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom } = window.AdminLogic;
 
   const els = {
     loginCard: document.getElementById('loginCard'),
@@ -29,6 +29,7 @@
     addExistingMessage: document.getElementById('addExistingMessage'),
     addExistingSelect: document.getElementById('addExistingSelect'),
     addExistingBtn: document.getElementById('addExistingBtn'),
+    importPlayersList: document.getElementById('importPlayersList'),
     rosterTable: document.getElementById('rosterTable'),
     playerDetail: document.getElementById('playerDetail'),
     playerDetailName: document.getElementById('playerDetailName'),
@@ -159,6 +160,28 @@
     els.addExistingSelect.innerHTML = notInYear.length
       ? notInYear.map((p) => `<option value="${escapeHtml(p.Token)}">${escapeHtml(p.Name)}</option>`).join('')
       : '<option value="">All players are already rostered for this season</option>';
+  }
+
+  // Render the previous current season's roster as an all-unchecked import
+  // checklist (Req 4.2/4.3). "Current" is whatever isCurrentYearRow is true for
+  // right now, matching the backend's previousCurrent.
+  function renderImportCandidates() {
+    const currentYear = (data.years || []).find(isCurrentYearRow);
+    const candidates = currentYear
+      ? importCandidatesFrom(data.players, data.playerYears, currentYear.YearID)
+      : [];
+    els.importPlayersList.innerHTML = candidates.length
+      ? candidates.map((p) =>
+          `<label class="import-row"><input type="checkbox" class="import-player" ` +
+          `value="${escapeHtml(p.Token)}"> ${escapeHtml(p.Name)}</label>`).join('')
+      : '<p class="muted">No players to import.</p>';
+  }
+
+  // Collect the tokens of the checked import candidates (the Import_Selection).
+  // May be empty when nothing is ticked (Reqs 4.4, 4.8).
+  function collectImportSelection() {
+    return Array.from(els.importPlayersList.querySelectorAll('.import-player:checked'))
+      .map((cb) => cb.value);
   }
 
   // `isCurrentYearRow` is now provided by AdminLogic (destructured at the top
@@ -412,6 +435,44 @@
     </table>`;
   }
 
+  // Mobile-only presentation of the same roster rows: one collapsible card per
+  // player, emitted alongside the table (visibility is controlled entirely by a
+  // CSS media query, no viewport-detection JS). Uses the SAME `rows` data and the
+  // SAME Stats.fmt* / escapeHtml helpers as rosterTableHtml() so formatted card
+  // values equal the table-cell values.
+  function rosterCardsHtml(rows) {
+    const sorted = sortRows(rows);
+    return sorted.map(({ player, rounds, agg, avgDiff }) => {
+      const statusHtml = player.Active === false
+        ? '<span class="muted">Inactive</span>'
+        : '<span class="pill">Active</span>';
+      const statusLabel = player.Active === false ? 'Inactive' : 'Active';
+      return `
+        <details class="roster-card">
+          <summary class="roster-card-summary">
+            <span class="roster-card-name">${escapeHtml(player.Name)}</span>
+            <span class="roster-card-meta">
+              <span class="roster-card-stat"><span class="roster-card-label">Avg /18</span> ${Stats.fmtAvg(agg.scoringAvgPer18)}</span>
+              <span class="roster-card-stat"><span class="roster-card-label">Rounds</span> ${rounds.length}</span>
+              ${statusHtml}
+            </span>
+          </summary>
+          <div class="roster-card-body">
+            <div class="roster-card-row"><span class="roster-card-label">Avg Diff</span><span class="roster-card-value">${Stats.fmtDiff(avgDiff)}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">Fairway %</span><span class="roster-card-value">${Stats.fmtPct(agg.fairwayPct)}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">GIR %</span><span class="roster-card-value">${Stats.fmtPct(agg.girPct)}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">Putts /18</span><span class="roster-card-value">${Stats.fmtAvg(agg.puttingAvgPer18)}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">Birdies+</span><span class="roster-card-value">${agg.birdies + agg.eagles}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">Doubles</span><span class="roster-card-value">${agg.doubles}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">Worse</span><span class="roster-card-value">${agg.worse}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">Status</span><span class="roster-card-value">${statusLabel}</span></div>
+            <button type="button" class="roster-card-detail secondary" data-token="${escapeHtml(player.Token)}">View full details</button>
+          </div>
+        </details>
+      `;
+    }).join('');
+  }
+
   function renderRoster() {
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     const roundsByPlayer = Stats.groupBy(yearRounds(), 'PlayerToken');
@@ -439,6 +500,7 @@
     els.rosterTable.innerHTML = groups.map((g) => `
       <h3>${escapeHtml(g.title)} (${g.rows.length})</h3>
       <div class="table-scroll" style="margin-bottom:1rem">${rosterTableHtml(g.rows)}</div>
+      <div class="roster-cards" style="margin-bottom:1rem">${rosterCardsHtml(g.rows)}</div>
     `).join('');
 
     els.rosterTable.querySelectorAll('th[data-sort-key]').forEach((th) => {
@@ -455,6 +517,12 @@
     });
     els.rosterTable.querySelectorAll('tr[data-token]').forEach((tr) => {
       tr.addEventListener('click', () => showPlayerDetail(tr.dataset.token));
+    });
+    // Mobile card "View full details" control: opens the same player detail view
+    // desktop opens on row click. The native <summary> toggle handles expand/
+    // collapse on its own and must NOT navigate, so it gets no listener here.
+    els.rosterTable.querySelectorAll('.roster-card-detail').forEach((btn) => {
+      btn.addEventListener('click', () => showPlayerDetail(btn.dataset.token));
     });
   }
 
@@ -740,6 +808,7 @@
     renderTeamTiles();
     renderRoster();
     populateAddExistingSelect();
+    renderImportCandidates();
     els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.add('hidden');
   }
@@ -848,7 +917,7 @@
     }
     try {
       const result = await UI.withBusy(els.createYearBtn, 'Creating…', () =>
-        Api.post({ action: 'createYear', session, label }));
+        Api.post({ action: 'createYear', session, label, playerTokens: collectImportSelection() }));
       els.newYearLabel.value = '';
       selectedYearId = result.yearId;
       // Persist the newly-created season so the next load restores it (Reqs 3.5, 4.5, 4.6).
