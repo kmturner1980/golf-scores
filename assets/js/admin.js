@@ -1,4 +1,9 @@
 (function () {
+  // Pure logic helpers live in assets/js/admin-logic.js (loaded before this
+  // file) so they can be unit- and property-tested with no DOM. Destructure
+  // them here for use by the season-selection wiring below.
+  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates } = window.AdminLogic;
+
   const els = {
     loginCard: document.getElementById('loginCard'),
     loginForm: document.getElementById('loginForm'),
@@ -6,6 +11,7 @@
     loginBtn: document.getElementById('loginBtn'),
     password: document.getElementById('password'),
     dashboard: document.getElementById('dashboard'),
+    loadingOverlay: document.getElementById('loadingOverlay'),
     yearMessage: document.getElementById('yearMessage'),
     yearSelect: document.getElementById('yearSelect'),
     setCurrentYearBtn: document.getElementById('setCurrentYearBtn'),
@@ -94,6 +100,30 @@
   let sortDir = 'asc';
   let selectedYearId = null;
 
+  // Persist the last-viewed season across sessions. All access is guarded so a
+  // disabled/unavailable localStorage (private mode, blocked storage, quota)
+  // degrades to the in-memory fallback instead of breaking dashboard load.
+  const VIEWING_SEASON_STORE_KEY = 'golf.admin.viewingYearId';
+  let storageOk = true;               // flips false on first failure; drives Req 3.7 notice
+
+  const Store = {
+    readViewingYearId() {
+      try {
+        return localStorage.getItem(VIEWING_SEASON_STORE_KEY);
+      } catch (_) {
+        storageOk = false;
+        return null;
+      }
+    },
+    writeViewingYearId(yearId) {
+      try {
+        if (yearId) localStorage.setItem(VIEWING_SEASON_STORE_KEY, yearId);
+      } catch (_) {
+        storageOk = false;
+      }
+    }
+  };
+
   let session = sessionStorage.getItem('adminSession') || null;
   let data = { players: [], rounds: [], holeScores: [], years: [], playerYears: [] };
 
@@ -121,22 +151,22 @@
   // players who exist globally but aren't rostered for the currently
   // selected year.
   function populateAddExistingSelect() {
-    const tokens = rosterTokensForYear(selectedYearId);
-    const notInYear = data.players.filter((p) => !tokens.has(p.Token))
-      .sort((a, b) => a.Name.localeCompare(b.Name));
+    // Candidate computation (set-difference + name sort) is extracted to the
+    // pure AdminLogic helper so it can be property-tested with no DOM; this
+    // function just renders whatever array it returns (Reqs 6.1-6.3).
+    const notInYear = existingPlayerCandidates(data.players, rosterTokensForYear(selectedYearId));
     els.addExistingBtn.disabled = !notInYear.length;
     els.addExistingSelect.innerHTML = notInYear.length
       ? notInYear.map((p) => `<option value="${escapeHtml(p.Token)}">${escapeHtml(p.Name)}</option>`).join('')
       : '<option value="">All players are already rostered for this season</option>';
   }
 
-  function isCurrentYearRow(y) {
-    return y.IsCurrent === true || y.IsCurrent === 'TRUE' || y.IsCurrent === 'true';
-  }
+  // `isCurrentYearRow` is now provided by AdminLogic (destructured at the top
+  // of this IIFE); the previous local copy was removed to avoid duplication.
 
-  // Repopulates the Season selector from data.years. Keeps the previously
-  // selected year if it still exists; otherwise falls back to whichever
-  // year is marked current, or the first one.
+  // Repopulates the Season selector from data.years. Resolves the initial
+  // selection from persisted state via resolveViewingYearId, following the
+  // stored -> current -> newest -> null precedence chain (Reqs 3.2-3.4, 3.6).
   function populateYearSelect() {
     // A stale Apps Script deployment (one that predates season support)
     // returns no `years` key at all, and a freshly-migrated-but-empty sheet
@@ -155,13 +185,23 @@
     els.yearSelect.innerHTML = sorted.map((y) =>
       `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
     ).join('');
-    const stillExists = sorted.some((y) => y.YearID === selectedYearId);
-    if (!stillExists) {
-      const current = sorted.find(isCurrentYearRow) || sorted[0];
-      selectedYearId = current ? current.YearID : null;
-    }
+    // Read the last-viewed season once and resolve the initial selection via the
+    // pure precedence resolver: stored -> current -> newest -> null (Reqs 3.2-3.4,
+    // 3.6). The resolver never returns an id absent from `years`.
+    const storedId = Store.readViewingYearId();
+    selectedYearId = resolveViewingYearId(data.years, storedId, isCurrentYearRow);
     els.yearSelect.value = selectedYearId || '';
     syncSetCurrentYearBtn();
+    // If the persisted read failed, `storageOk` flipped false during the
+    // readViewingYearId() call above and the resolver already fell back to
+    // current/newest -- load is never blocked. Surface a non-blocking notice
+    // so the user understands why their last-viewed season wasn't restored
+    // (Req 3.7). Only shown when seasons exist (the empty-state message owns
+    // #yearMessage otherwise, and that path returns before reaching here).
+    if (!storageOk && (data.years || []).length) {
+      els.yearMessage.innerHTML =
+        '<div class="muted">Couldn\u2019t restore your last-viewed season; showing the current season.</div>';
+    }
   }
 
   function syncSetCurrentYearBtn() {
@@ -707,7 +747,15 @@
   async function showDashboard() {
     els.loginCard.classList.add('hidden');
     els.dashboard.classList.remove('hidden');
-    await refresh();
+    // adminData reads five sheets and is cold-start-prone (often several
+    // seconds), so show a loading state instead of a frozen-looking blank
+    // dashboard. Everything below goes through refresh() -> loadData().
+    els.loadingOverlay.classList.remove('hidden');
+    try {
+      await refresh();
+    } finally {
+      els.loadingOverlay.classList.add('hidden');
+    }
   }
 
   els.loginForm.addEventListener('submit', async (e) => {
@@ -769,6 +817,9 @@
 
   els.yearSelect.addEventListener('change', () => {
     selectedYearId = els.yearSelect.value;
+    // Persist the newly-chosen season before any re-render so the next load
+    // can restore it (Reqs 2.2, 3.1). The guarded Store no-ops on failure.
+    Store.writeViewingYearId(selectedYearId);
     syncSetCurrentYearBtn();
     renderTeamTiles();
     renderRoster();
@@ -800,6 +851,8 @@
         Api.post({ action: 'createYear', session, label }));
       els.newYearLabel.value = '';
       selectedYearId = result.yearId;
+      // Persist the newly-created season so the next load restores it (Reqs 3.5, 4.5, 4.6).
+      Store.writeViewingYearId(result.yearId);
       await refresh();
       els.yearMessage.innerHTML = `<div class="success">Created "${escapeHtml(label)}" and made it the current season.</div>`;
     } catch (err) {

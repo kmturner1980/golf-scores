@@ -76,6 +76,33 @@ main {
   margin-bottom: 1rem;
 }
 
+/* Collapsible admin Settings disclosure. Reuses .card for the shell; these
+   rules only style the summary row and its open/closed indicator. */
+.settings > summary.settings-summary {
+  cursor: pointer;
+  list-style: none;              /* hide default marker; we draw our own */
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.settings > summary.settings-summary::-webkit-details-marker { display: none; }
+
+/* Brand-consistent expand/collapse indicator (rotates when open). */
+.settings > summary.settings-summary::before {
+  content: "\25B8";              /* right-pointing triangle when collapsed */
+  color: var(--gold);
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+.settings[open] > summary.settings-summary::before {
+  transform: rotate(90deg);      /* points down when expanded */
+}
+
+.settings .settings-body { margin-top: 0.9rem; }
+
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; color: var(--navy); }
 h3 { font-size: 0.95rem; margin: 0 0 0.5rem; color: var(--navy); }
 
@@ -266,6 +293,25 @@ th.clickable:hover { color: var(--navy); }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Full-card loading state for the admin dashboard while the (slow, cold-
+   start-prone) Apps Script adminData call is in flight. */
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1rem;
+  color: var(--navy, #1b325e);
+  font-size: 0.95rem;
+}
+
+.spinner-dark {
+  border-color: rgba(27, 50, 94, 0.25);
+  border-top-color: var(--navy, #1b325e);
+  width: 1.4em;
+  height: 1.4em;
 }
 
 .summary-grid {

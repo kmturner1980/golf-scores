@@ -32,28 +32,54 @@
   </div>
 
   <div id="dashboard" class="hidden">
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <span class="spinner spinner-dark"></span>
+      <span>Loading season data&hellip;</span>
+    </div>
     <div class="card">
       <h2>Season</h2>
       <div id="yearMessage"></div>
-      <div class="field-row" style="align-items:end">
-        <div class="field" style="margin-bottom:0">
-          <label for="yearSelect">Viewing Year</label>
-          <select id="yearSelect"></select>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <button type="button" id="setCurrentYearBtn" class="secondary">Make This the Current Season</button>
-        </div>
-      </div>
-      <div class="field-row" style="align-items:end; margin-top:0.75rem">
-        <div class="field" style="margin-bottom:0">
-          <label for="newYearLabel">New Season Label</label>
-          <input type="text" id="newYearLabel" placeholder="e.g. 2027-2028">
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <button type="button" id="createYearBtn">Create New Season</button>
-        </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="yearSelect">Viewing Season</label>
+        <select id="yearSelect"></select>
       </div>
     </div>
+
+    <details id="settingsSection" class="card settings">
+      <summary class="settings-summary">Settings</summary>
+
+      <div class="settings-body">
+        <!-- Make current: shown only when viewing season isn't current -->
+        <div class="field" style="margin-bottom:0.75rem">
+          <button type="button" id="setCurrentYearBtn" class="secondary">Make This the Current Season</button>
+        </div>
+
+        <!-- Create new season -->
+        <div class="field-row" style="align-items:end; margin-bottom:0.75rem">
+          <div class="field" style="margin-bottom:0">
+            <label for="newYearLabel">New Season Label</label>
+            <input type="text" id="newYearLabel" placeholder="e.g. 2027-2028" maxlength="100">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <button type="button" id="createYearBtn">Create New Season</button>
+          </div>
+        </div>
+
+        <!-- Add existing player to viewing season -->
+        <h3>Add Existing Player to This Season</h3>
+        <p class="muted">For a returning player who isn't rostered for the season you're viewing (e.g. they were removed by mistake, or sat out a season).</p>
+        <div id="addExistingMessage"></div>
+        <div class="field-row" style="align-items:end">
+          <div class="field" style="margin-bottom:0">
+            <label for="addExistingSelect">Player</label>
+            <select id="addExistingSelect"></select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <button type="button" id="addExistingBtn">Add to Season</button>
+          </div>
+        </div>
+      </div>
+    </details>
 
     <div class="card">
       <h2>Team Totals</h2>
@@ -82,21 +108,6 @@
       <div id="newLinkBox" class="link-box hidden" style="margin-top:0.75rem">
         <input type="text" id="newLinkInput" readonly>
         <button type="button" id="copyLinkBtn" class="secondary">Copy</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Add Existing Player to This Season</h2>
-      <p class="muted">For a returning player who isn't rostered for the year you're viewing (e.g. they were removed by mistake, or sat out a season).</p>
-      <div id="addExistingMessage"></div>
-      <div class="field-row" style="align-items:end">
-        <div class="field" style="margin-bottom:0">
-          <label for="addExistingSelect">Player</label>
-          <select id="addExistingSelect"></select>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <button type="button" id="addExistingBtn">Add to Season</button>
-        </div>
       </div>
     </div>
 
@@ -306,6 +317,7 @@
 <script src="assets/js/courses.js"></script>
 <script src="assets/js/holeTable.js"></script>
 <script src="assets/js/ui.js"></script>
+<script src="assets/js/admin-logic.js"></script>
 <script src="assets/js/admin.js"></script>
 </body>
 </html>

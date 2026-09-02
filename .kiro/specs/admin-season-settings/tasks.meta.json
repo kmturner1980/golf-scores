@@ -1,0 +1,326 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create `assets/js/admin-logic.js` with the pure helpers and namespace": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364343796
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364352344
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364426580
+      }
+    ],
+    "1.2 Write property test for season-selection precedence": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364343857
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364432301
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364556206
+      }
+    ],
+    "1.3 Write property test for resolver validity/totality": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364343909
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364433369
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364557271
+      }
+    ],
+    "1.4 Write property test for add-existing candidates": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364343956
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364434636
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364558573
+      }
+    ],
+    "1.5 Write unit/example tests for the pure helpers": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344011
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364435726
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364559620
+      }
+    ],
+    "2. Checkpoint - pure helpers tested before any DOM wiring": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344056
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364569682
+      }
+    ],
+    "3.1 Reduce the Season card to the Viewing Season selector only": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344095
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364565495
+      }
+    ],
+    "3.2 Add the collapsed-by-default Settings disclosure and relocate controls": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344141
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364612751
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364675996
+      }
+    ],
+    "4.1 Style the Settings summary and open/closed marker from brand variables": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344184
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364436692
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364560639
+      }
+    ],
+    "5.1 Add the guarded `Store` wrapper and `storageOk` flag": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344226
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364682102
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364780387
+      }
+    ],
+    "5.2 Write unit test for guarded Store read failure": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344274
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364781285
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364874558
+      }
+    ],
+    "5.3 Read the store and resolve initial selection in `populateYearSelect()`": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344316
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364878520
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364955708
+      }
+    ],
+    "5.4 Render the non-blocking storage-failure notice": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344359
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364959578
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365024021
+      }
+    ],
+    "6.1 Persist selection in the `#yearSelect` change handler": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344400
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365027994
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365085886
+      }
+    ],
+    "6.2 Persist the new season in the `createYearBtn` success path": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344443
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365089611
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365147835
+      }
+    ],
+    "7.1 Use `existingPlayerCandidates` to build the add-existing options": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344482
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365151989
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365217652
+      }
+    ],
+    "8. Checkpoint - relocation and wiring integrated": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344525
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365244234
+      }
+    ],
+    "9. Manual verification checklist (DOM, localStorage, live backend)": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364344566
+      },
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365347103
+      }
+    ],
+    "1. Create the pure logic module and expose it without a build step": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364559656
+      }
+    ],
+    "4. Add Settings disclosure styles in `assets/css/styles.css`": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788364560701
+      }
+    ],
+    "5. Wire the guarded storage wrapper and resolver into `admin.js`": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365024070
+      }
+    ],
+    "6. Wire the write-on-change and write-on-create hooks in `admin.js`": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365147883
+      }
+    ],
+    "7. Point `populateAddExistingSelect()` at the pure candidate helper": [
+      {
+        "executionId": "f5806841-7d66-4ca4-9b00-a1f11832d8e7",
+        "chatSessionId": "sess_6d8881ec-02a9-45ff-9b8b-cdd82a28626f",
+        "timestamp": 1788365217709
+      }
+    ]
+  }
+}
