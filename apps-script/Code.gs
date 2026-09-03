@@ -51,11 +51,6 @@ function doPost(e) {
         updatePlayer_(body.token, { name: body.name, sex: body.sex });
         return jsonOut_({ ok: true });
 
-      case 'setPlayerActive':
-        requireSession_(body.session);
-        setPlayerActive_(body.token, body.active);
-        return jsonOut_({ ok: true });
-
       case 'deleteRound':
         requireSession_(body.session);
         deleteRound_(body.roundId);

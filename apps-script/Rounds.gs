@@ -143,7 +143,7 @@ function getPlayerHistory_(token) {
   });
 
   return {
-    player: { name: player.Name, active: player.Active },
+    player: { name: player.Name },
     rounds: rounds,
     holeScores: holeScores
   };

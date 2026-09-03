@@ -54,7 +54,6 @@ function addPlayer_(name, sex, yearId) {
     Token: token,
     Name: name,
     Sex: sex,
-    Active: true,
     DateAdded: new Date()
   };
   appendObject_(SHEET_PLAYERS, record);
@@ -79,16 +78,6 @@ function updatePlayer_(token, updates) {
     if (sexCol === -1) throw new Error('Players sheet has no "Sex" column yet -- run migrateAddSexColumn() from the Apps Script editor first.');
     sheet.getRange(rowIdx, sexCol + 1).setValue(validateSex_(updates.sex));
   }
-}
-
-/** Admin-only: activate/deactivate a player without deleting their history. */
-function setPlayerActive_(token, active) {
-  var sheet = getSheet_(SHEET_PLAYERS);
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var rowIdx = findRowIndexByValue_(sheet, headers, 'Token', token);
-  if (rowIdx === -1) throw new Error('Player not found.');
-  var col = headers.indexOf('Active') + 1;
-  sheet.getRange(rowIdx, col).setValue(!!active);
 }
 
 /**

@@ -194,8 +194,7 @@
 
   // Which players are actually rostered for a given year -- a player who
   // exists globally (e.g. a graduated senior, or someone who sat out a
-  // season) doesn't show up at all for a year they're not rostered for,
-  // regardless of their Active/Inactive flag.
+  // season) doesn't show up at all for a year they're not rostered for.
   function rosterTokensForYear(yearId) {
     return new Set(data.playerYears.filter((py) => py.YearID === yearId).map((py) => py.PlayerToken));
   }
@@ -403,8 +402,7 @@
     { key: 'putts', label: 'Putts /18', value: (row) => row.agg.puttingAvgPer18 },
     { key: 'birdies', label: 'Birdies+', value: (row) => row.agg.birdies + row.agg.eagles },
     { key: 'doubles', label: 'Doubles', value: (row) => row.agg.doubles },
-    { key: 'worse', label: 'Worse', value: (row) => row.agg.worse },
-    { key: 'status', label: 'Status', value: (row) => (row.player.Active === false ? 0 : 1) }
+    { key: 'worse', label: 'Worse', value: (row) => row.agg.worse }
   ];
 
   function sortRows(rows) {
@@ -443,7 +441,6 @@
           <td>${agg.birdies + agg.eagles}</td>
           <td>${agg.doubles}</td>
           <td>${agg.worse}</td>
-          <td>${player.Active === false ? '<span class="muted">Inactive</span>' : '<span class="pill">Active</span>'}</td>
         </tr>
       `).join('')}</tbody>
     </table>`;
@@ -457,10 +454,6 @@
   function rosterCardsHtml(rows) {
     const sorted = sortRows(rows);
     return sorted.map(({ player, rounds, agg, avgDiff }) => {
-      const statusHtml = player.Active === false
-        ? '<span class="muted">Inactive</span>'
-        : '<span class="pill">Active</span>';
-      const statusLabel = player.Active === false ? 'Inactive' : 'Active';
       return `
         <details class="roster-card">
           <summary class="roster-card-summary">
@@ -468,7 +461,6 @@
             <span class="roster-card-meta">
               <span class="roster-card-stat"><span class="roster-card-label">Avg /18</span> ${Stats.fmtAvg(agg.scoringAvgPer18)}</span>
               <span class="roster-card-stat"><span class="roster-card-label">Rounds</span> ${rounds.length}</span>
-              ${statusHtml}
             </span>
           </summary>
           <div class="roster-card-body">
@@ -479,7 +471,6 @@
             <div class="roster-card-row"><span class="roster-card-label">Birdies+</span><span class="roster-card-value">${agg.birdies + agg.eagles}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Doubles</span><span class="roster-card-value">${agg.doubles}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Worse</span><span class="roster-card-value">${agg.worse}</span></div>
-            <div class="roster-card-row"><span class="roster-card-label">Status</span><span class="roster-card-value">${statusLabel}</span></div>
             <button type="button" class="roster-card-detail secondary" data-token="${escapeHtml(player.Token)}">View full details</button>
           </div>
         </details>

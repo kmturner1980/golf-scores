@@ -55,7 +55,7 @@
     });
   }
 
-  // -- from assets/js/admin.js (ROSTER_COLUMNS) — the 11 columns, in order.
+  // -- from assets/js/admin.js (ROSTER_COLUMNS) — the 10 columns, in order.
   var ROSTER_COLUMNS = [
     { key: 'name', label: 'Name', value: function (row) { return row.player.Name.toLowerCase(); } },
     { key: 'rounds', label: 'Rounds', value: function (row) { return row.rounds.length; } },
@@ -66,8 +66,7 @@
     { key: 'putts', label: 'Putts /18', value: function (row) { return row.agg.puttingAvgPer18; } },
     { key: 'birdies', label: 'Birdies+', value: function (row) { return row.agg.birdies + row.agg.eagles; } },
     { key: 'doubles', label: 'Doubles', value: function (row) { return row.agg.doubles; } },
-    { key: 'worse', label: 'Worse', value: function (row) { return row.agg.worse; } },
-    { key: 'status', label: 'Status', value: function (row) { return (row.player.Active === false ? 0 : 1); } }
+    { key: 'worse', label: 'Worse', value: function (row) { return row.agg.worse; } }
   ];
 
   // -- from assets/js/admin.js (sortRows) — comparator VERBATIM. The module
@@ -123,11 +122,11 @@
   }
 
   // A small helper to build a roster row fixture matching the shape sortRows
-  // consumes: { player: { Name, Token, Active }, rounds: [], agg: {...}, avgDiff }.
+  // consumes: { player: { Name, Token }, rounds: [], agg: {...}, avgDiff }.
   function row(name, opts) {
     opts = opts || {};
     return {
-      player: { Name: name, Token: opts.token || ('T' + name), Active: opts.active },
+      player: { Name: name, Token: opts.token || ('T' + name) },
       rounds: new Array(opts.rounds == null ? 0 : opts.rounds).fill(0),
       agg: {
         scoringAvgPer18: opts.avg,
@@ -146,12 +145,12 @@
   console.log('Roster preservation baseline (Task 2 — Property 2)');
   console.log('----------------------------------------');
 
-  // ---- ROSTER_COLUMNS: exactly the 11 columns, in the defined order ------
-  // Validates: Requirements 3.1 (baseline: all 11 sortable columns present/ordered)
-  test('baseline: ROSTER_COLUMNS has exactly the 11 columns in the fixed order', function () {
-    var expectedKeys = ['name', 'rounds', 'avg', 'diff', 'fairway', 'gir', 'putts', 'birdies', 'doubles', 'worse', 'status'];
-    var expectedLabels = ['Name', 'Rounds', 'Avg /18', 'Avg Diff', 'Fairway %', 'GIR %', 'Putts /18', 'Birdies+', 'Doubles', 'Worse', 'Status'];
-    assertEqual(ROSTER_COLUMNS.length, 11, 'must be 11 columns');
+  // ---- ROSTER_COLUMNS: exactly the 10 columns, in the defined order ------
+  // Validates: Requirements 3.1 (baseline: all 10 sortable columns present/ordered)
+  test('baseline: ROSTER_COLUMNS has exactly the 10 columns in the fixed order', function () {
+    var expectedKeys = ['name', 'rounds', 'avg', 'diff', 'fairway', 'gir', 'putts', 'birdies', 'doubles', 'worse'];
+    var expectedLabels = ['Name', 'Rounds', 'Avg /18', 'Avg Diff', 'Fairway %', 'GIR %', 'Putts /18', 'Birdies+', 'Doubles', 'Worse'];
+    assertEqual(ROSTER_COLUMNS.length, 10, 'must be 10 columns');
     assertEqual(
       JSON.stringify(ROSTER_COLUMNS.map(function (c) { return c.key; })),
       JSON.stringify(expectedKeys),
