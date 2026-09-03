@@ -2,7 +2,7 @@
   // Pure logic helpers live in assets/js/admin-logic.js (loaded before this
   // file) so they can be unit- and property-tested with no DOM. Destructure
   // them here for use by the season-selection wiring below.
-  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields } = window.AdminLogic;
+  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields, yearListRows, walkStepValidation, collectNewPlayers, buildConfirmSummary } = window.AdminLogic;
 
   const els = {
     loginCard: document.getElementById('loginCard'),
@@ -12,24 +12,61 @@
     password: document.getElementById('password'),
     dashboard: document.getElementById('dashboard'),
     loadingOverlay: document.getElementById('loadingOverlay'),
+    menuToggle: document.getElementById('menuToggle'),
+    menuPanel: document.getElementById('menuPanel'),
+    menuDashboard: document.getElementById('menuDashboard'),
+    menuYearMgmt: document.getElementById('menuYearMgmt'),
+    // Year Management full-screen view (Tasks 5.x). #editYear / #yearWalk are
+    // hidden sub-panels reset on close so a fresh open starts on the list;
+    // their inner controls are wired by Tasks 6.x / 8.x.
+    yearMgmt: document.getElementById('yearMgmt'),
+    yearMgmtBack: document.getElementById('yearMgmtBack'),
+    yearMgmtMessage: document.getElementById('yearMgmtMessage'),
+    addYearBtn: document.getElementById('addYearBtn'),
+    yearList: document.getElementById('yearList'),
+    editYear: document.getElementById('editYear'),
+    // Edit-Year panel controls (Tasks 6.x). Every one of these targets
+    // editingYearId, never selectedYearId -- the panel administers a season
+    // chosen from the season list, which may differ from the dashboard's
+    // viewing season.
+    editYearHeading: document.getElementById('editYearHeading'),
+    editYearBack: document.getElementById('editYearBack'),
+    editYearMessage: document.getElementById('editYearMessage'),
+    editYearMakeCurrentBtn: document.getElementById('editYearMakeCurrentBtn'),
+    editYearRoster: document.getElementById('editYearRoster'),
+    editYearAddExistingMessage: document.getElementById('editYearAddExistingMessage'),
+    editYearAddExistingSelect: document.getElementById('editYearAddExistingSelect'),
+    editYearAddExistingBtn: document.getElementById('editYearAddExistingBtn'),
+    editYearAddPlayerForm: document.getElementById('editYearAddPlayerForm'),
+    editYearNewPlayerName: document.getElementById('editYearNewPlayerName'),
+    editYearNewPlayerSex: document.getElementById('editYearNewPlayerSex'),
+    editYearAddPlayerBtn: document.getElementById('editYearAddPlayerBtn'),
+    editYearAddPlayerMessage: document.getElementById('editYearAddPlayerMessage'),
+    editYearNewLinkBox: document.getElementById('editYearNewLinkBox'),
+    editYearNewLinkInput: document.getElementById('editYearNewLinkInput'),
+    editYearCopyLinkBtn: document.getElementById('editYearCopyLinkBtn'),
+    yearWalk: document.getElementById('yearWalk'),
+    // Add-Year walkthrough controls (Tasks 8.x). All live inside #yearWalk, the
+    // hidden sub-view of #yearMgmt. Step content is rendered by JS; navigation
+    // (Back/Next/Confirm) is gated by AdminLogic.walkStepValidation.
+    yearWalkHeading: document.getElementById('yearWalkHeading'),
+    walkProgress: document.getElementById('walkProgress'),
+    walkMessage: document.getElementById('walkMessage'),
+    walkStep1: document.getElementById('walkStep1'),
+    walkStep2: document.getElementById('walkStep2'),
+    walkStep3: document.getElementById('walkStep3'),
+    walkStep4: document.getElementById('walkStep4'),
+    walkLabel: document.getElementById('walkLabel'),
+    walkReturningList: document.getElementById('walkReturningList'),
+    walkNewPlayers: document.getElementById('walkNewPlayers'),
+    walkAddPlayerRow: document.getElementById('walkAddPlayerRow'),
+    walkReview: document.getElementById('walkReview'),
+    walkBackBtn: document.getElementById('walkBackBtn'),
+    walkNextBtn: document.getElementById('walkNextBtn'),
+    walkConfirmBtn: document.getElementById('walkConfirmBtn'),
     yearMessage: document.getElementById('yearMessage'),
     yearSelect: document.getElementById('yearSelect'),
-    setCurrentYearBtn: document.getElementById('setCurrentYearBtn'),
-    newYearLabel: document.getElementById('newYearLabel'),
-    createYearBtn: document.getElementById('createYearBtn'),
     teamTiles: document.getElementById('teamTiles'),
-    addPlayerForm: document.getElementById('addPlayerForm'),
-    addPlayerMessage: document.getElementById('addPlayerMessage'),
-    addPlayerBtn: document.querySelector('#addPlayerForm button[type="submit"]'),
-    newPlayerName: document.getElementById('newPlayerName'),
-    newPlayerSex: document.getElementById('newPlayerSex'),
-    newLinkBox: document.getElementById('newLinkBox'),
-    newLinkInput: document.getElementById('newLinkInput'),
-    copyLinkBtn: document.getElementById('copyLinkBtn'),
-    addExistingMessage: document.getElementById('addExistingMessage'),
-    addExistingSelect: document.getElementById('addExistingSelect'),
-    addExistingBtn: document.getElementById('addExistingBtn'),
-    importPlayersList: document.getElementById('importPlayersList'),
     rosterTable: document.getElementById('rosterTable'),
     playerDetail: document.getElementById('playerDetail'),
     backToRosterTop: document.getElementById('backToRosterTop'),
@@ -100,10 +137,26 @@
   let currentPlayerToken = null;
   let rosterScrollY = 0;              // window scrollY captured when the player view opens
   let playerViewOpen = false;         // whether the full-screen player view is showing
+  let dashScrollY = 0;                // window scrollY captured when the Year Management view opens
+  let yearMgmtOpen = false;           // whether the full-screen Year Management view is showing
   let editingRoundId = null;
   let sortKey = 'avg';
   let sortDir = 'asc';
   let selectedYearId = null;
+  // The season currently being administered in the Edit-Year panel (Tasks 6.x).
+  // DISTINCT from selectedYearId (which drives the main dashboard): the coach
+  // can edit a season other than the one they're viewing, so every Edit-Year
+  // action targets editingYearId, not selectedYearId.
+  let editingYearId = null;
+  // The Add-Year walkthrough model (Tasks 8.x). null when the walkthrough is
+  // not active; reset to a fresh object by startYearWalk(). Shape mirrors the
+  // design's walkthrough State model:
+  //   { step:1, label:'', returningTokens:[], newPlayers:[{name,sex}], result:null }
+  // Steps 2 and 3 are skippable; confirmation is gated only by a valid label
+  // (via AdminLogic.walkStepValidation). Lives entirely inside #yearWalk, an
+  // in-view sub-panel of Year Management -- no history entry is pushed for step
+  // navigation (mirrors how Edit-Year is internal to the view).
+  let walk = null;
 
   // Persist the last-viewed season across sessions. All access is guarded so a
   // disabled/unavailable localStorage (private mode, blocked storage, quota)
@@ -152,42 +205,6 @@
     return data.players.filter((p) => tokens.has(p.Token));
   }
 
-  // Populates the "Add Existing Player to This Season" dropdown with
-  // players who exist globally but aren't rostered for the currently
-  // selected year.
-  function populateAddExistingSelect() {
-    // Candidate computation (set-difference + name sort) is extracted to the
-    // pure AdminLogic helper so it can be property-tested with no DOM; this
-    // function just renders whatever array it returns (Reqs 6.1-6.3).
-    const notInYear = existingPlayerCandidates(data.players, rosterTokensForYear(selectedYearId));
-    els.addExistingBtn.disabled = !notInYear.length;
-    els.addExistingSelect.innerHTML = notInYear.length
-      ? notInYear.map((p) => `<option value="${escapeHtml(p.Token)}">${escapeHtml(p.Name)}</option>`).join('')
-      : '<option value="">All players are already rostered for this season</option>';
-  }
-
-  // Render the previous current season's roster as an all-unchecked import
-  // checklist (Req 4.2/4.3). "Current" is whatever isCurrentYearRow is true for
-  // right now, matching the backend's previousCurrent.
-  function renderImportCandidates() {
-    const currentYear = (data.years || []).find(isCurrentYearRow);
-    const candidates = currentYear
-      ? importCandidatesFrom(data.players, data.playerYears, currentYear.YearID)
-      : [];
-    els.importPlayersList.innerHTML = candidates.length
-      ? candidates.map((p) =>
-          `<label class="import-row"><input type="checkbox" class="import-player" ` +
-          `value="${escapeHtml(p.Token)}"> ${escapeHtml(p.Name)}</label>`).join('')
-      : '<p class="muted">No players to import.</p>';
-  }
-
-  // Collect the tokens of the checked import candidates (the Import_Selection).
-  // May be empty when nothing is ticked (Reqs 4.4, 4.8).
-  function collectImportSelection() {
-    return Array.from(els.importPlayersList.querySelectorAll('.import-player:checked'))
-      .map((cb) => cb.value);
-  }
-
   // `isCurrentYearRow` is now provided by AdminLogic (destructured at the top
   // of this IIFE); the previous local copy was removed to avoid duplication.
 
@@ -205,7 +222,6 @@
       els.yearSelect.value = '';
       selectedYearId = null;
       els.yearMessage.innerHTML = '<div class="error">No seasons loaded. If you have a season in your sheet, your Apps Script Web App is likely running an older version - redeploy the latest backend (Deploy &rarr; Manage deployments &rarr; New version), and if needed run migrateAddYears() and migrateAddPlayerYears() from the Apps Script editor.</div>';
-      syncSetCurrentYearBtn();
       return;
     }
     const sorted = [...years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
@@ -218,7 +234,6 @@
     const storedId = Store.readViewingYearId();
     selectedYearId = resolveViewingYearId(data.years, storedId, isCurrentYearRow);
     els.yearSelect.value = selectedYearId || '';
-    syncSetCurrentYearBtn();
     // If the persisted read failed, `storageOk` flipped false during the
     // readViewingYearId() call above and the resolver already fell back to
     // current/newest -- load is never blocked. Surface a non-blocking notice
@@ -229,11 +244,6 @@
       els.yearMessage.innerHTML =
         '<div class="muted">Couldn\u2019t restore your last-viewed season; showing the current season.</div>';
     }
-  }
-
-  function syncSetCurrentYearBtn() {
-    const selected = (data.years || []).find((y) => y.YearID === selectedYearId);
-    els.setCurrentYearBtn.classList.toggle('hidden', !selected || isCurrentYearRow(selected));
   }
 
   // Populates the round editor's own Year field (separate from the page-level
@@ -696,8 +706,551 @@
   // playerViewOpen guard means our own consumed entry (from an on-page Back link's
   // history.back()) and normal roster navigation are left untouched.
   function onPopState(event) {
+    // Shared dispatch for both full-screen views. At most one is ever open (the
+    // single-open invariant), so only one branch fires. fromPopstate = true so
+    // the close path does NOT call history.back() again.
     if (playerViewOpen) {
-      closePlayerDetail(true);   // fromPopstate = true: do NOT call history.back() again
+      closePlayerDetail(true);
+    } else if (yearMgmtOpen) {
+      closeYearMgmt(true);
+    }
+  }
+
+  // --- Year Management full-screen view (Reqs 3.1-3.8) -----------------------
+  // Mirrors the player-view controller above: a separate `yearMgmtOpen` guard,
+  // its own scroll capture (`dashScrollY`, kept distinct from `rosterScrollY`
+  // so the two views never clobber each other's restore point), a single
+  // pushState on open, and history.back() on close only when not driven by
+  // popstate. Enters at the top and renders the season list.
+  function openYearMgmt() {
+    if (yearMgmtOpen) return;                        // idempotent: no duplicate history entry
+    // Single-open invariant: never leave both `player-view-open` and
+    // `year-mgmt-open` set. If the player view is open, close it first
+    // (fromPopstate=false) so it consumes its own pushed entry and restores its
+    // scroll BEFORE we push ours and capture the (now-restored) dashboard scroll.
+    if (playerViewOpen) closePlayerDetail(false);
+    dashScrollY = window.scrollY;                    // capture exact dashboard position
+    els.yearMgmt.classList.remove('hidden');
+    els.dashboard.classList.add('year-mgmt-open');
+    yearMgmtOpen = true;
+    window.scrollTo(0, 0);                           // year mgmt opens at the top
+    history.pushState({ adminYearMgmt: true }, '', location.href);
+    renderYearList();
+  }
+
+  // Close the Year Management view and return to the Main_Dashboard at the
+  // captured scroll position. `fromPopstate` is true when invoked by the
+  // popstate handler, in which case we must NOT call history.back() again. The
+  // yearMgmtOpen guard makes the on-page Back control's history.back() ->
+  // popstate a no-op, so close runs exactly once.
+  function closeYearMgmt(fromPopstate) {
+    if (!yearMgmtOpen) return;                        // guards double-trigger
+    els.dashboard.classList.remove('year-mgmt-open');
+    els.yearMgmt.classList.add('hidden');
+    // Reset the in-view sub-panels so the next open starts clean on the season
+    // list (their inner state is wired by Tasks 6.x / 8.x).
+    if (els.editYear) els.editYear.classList.add('hidden');
+    if (els.yearWalk) els.yearWalk.classList.add('hidden');
+    yearMgmtOpen = false;
+    if (!fromPopstate) {
+      // On-page Back: pop our pushed entry. The resulting popstate is ignored
+      // because yearMgmtOpen is already false.
+      history.back();
+    }
+    // Restore dashboard scroll AFTER the cards are visible again so the target
+    // offset exists in the layout.
+    window.scrollTo(0, dashScrollY);
+  }
+
+  // Render the season list into #yearList from the pure yearListRows view model
+  // (newest-first, canMakeCurrent === !isCurrent). Each row shows the label, a
+  // "(Current)" marker, an Edit control, and a Make-current control only for
+  // non-current seasons (Reqs 4.1-4.7).
+  function renderYearList() {
+    const rows = yearListRows(data.years, isCurrentYearRow);
+    if (!rows.length) {
+      els.yearList.innerHTML = '<p class="muted">No seasons yet.</p>';
+      return;
+    }
+    els.yearList.innerHTML = rows.map((row) => `
+      <div class="field-row" data-year-row="${escapeHtml(row.yearId)}" style="align-items:center; margin-bottom:0.5rem">
+        <div class="field" style="margin-bottom:0; flex:1">
+          ${escapeHtml(row.label)}${row.isCurrent ? ' <span class="pill">Current</span>' : ''}
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" class="secondary edit-year" data-year-id="${escapeHtml(row.yearId)}">Edit</button>
+        </div>
+        ${row.canMakeCurrent ? `
+        <div class="field" style="margin-bottom:0">
+          <button type="button" class="make-current-year" data-year-id="${escapeHtml(row.yearId)}">Make current</button>
+        </div>` : ''}
+      </div>
+    `).join('');
+
+    // Make-current: target this row's YearID, then refresh and re-render the
+    // list (Req 4.6).
+    els.yearList.querySelectorAll('.make-current-year').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        els.yearMgmtMessage.innerHTML = '';
+        const yearId = btn.dataset.yearId;
+        try {
+          await UI.withBusy(btn, 'Saving…', () =>
+            Api.post({ action: 'setCurrentYear', session, yearId }));
+          await refresh();
+          renderYearList();
+          els.yearMgmtMessage.innerHTML = '<div class="success">Updated the current season.</div>';
+        } catch (err) {
+          els.yearMgmtMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+        }
+      });
+    });
+
+    // Edit: opens the Edit-Year panel scoped to this row's YearID. openEditYear
+    // is provided by Task 6.1; guard so this list-level rendering lands
+    // independently (matches the Task 4.1 menu-wiring pattern).
+    els.yearList.querySelectorAll('.edit-year').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (typeof openEditYear === 'function') openEditYear(btn.dataset.yearId);
+        // else: Edit-Year controller (Task 6.1) not present yet -- no-op.
+      });
+    });
+  }
+
+  // --- Edit-Year panel (Reqs 5.1-5.11) ---------------------------------------
+  // An in-view sub-panel of the Year Management view. It administers ONE
+  // explicitly-selected season, tracked in `editingYearId` -- kept separate
+  // from `selectedYearId` so the coach can edit a season other than the one
+  // the dashboard is viewing. Every action below targets editingYearId. This
+  // panel is internal to the Year Management view: opening/closing it pushes NO
+  // history entry (one browser-Back returns straight to the main dashboard),
+  // matching how the round editor is internal to the player view.
+
+  // Open the Edit-Year panel for `yearId`: record it as editingYearId, focus
+  // the panel within the Year Management view (hide the season list + Add-Year
+  // button so the edit panel is the sole focus), and render its sub-regions
+  // (Reqs 5.1, 5.2). No-ops if `yearId` isn't a known season.
+  function openEditYear(yearId) {
+    const year = (data.years || []).find((y) => y.YearID === yearId);
+    if (!year) return;                               // unknown season: no-op
+    editingYearId = yearId;
+    // Focus the panel: hide the list + Add-New-Year control while editing so
+    // the edit panel reads as the sole content of the Year Management view.
+    // closeEditYear reverses this.
+    els.yearList.classList.add('hidden');
+    els.addYearBtn.classList.add('hidden');
+    els.editYear.classList.remove('hidden');
+    els.editYearHeading.textContent = year.Label;
+    // Clear any stale per-section messages and hide the new-player link box
+    // left over from a previous edit session.
+    els.editYearMessage.innerHTML = '';
+    els.editYearAddExistingMessage.innerHTML = '';
+    els.editYearAddPlayerMessage.innerHTML = '';
+    els.editYearNewLinkBox.classList.add('hidden');
+    // Make-current is offered only when the edited season isn't already current
+    // (Req 5.3). isCurrentYearRow reads the same flag the season list uses.
+    els.editYearMakeCurrentBtn.classList.toggle('hidden', isCurrentYearRow(year));
+    renderEditYearRoster();
+    populateEditYearAddExisting();
+  }
+
+  // Return from the Edit-Year panel to the season list, in-view (no history
+  // change, Req 5.1/5.2). Re-render the list so any changes made while editing
+  // (e.g. a made-current season) are reflected.
+  function closeEditYear() {
+    els.editYear.classList.add('hidden');
+    els.yearList.classList.remove('hidden');
+    els.addYearBtn.classList.remove('hidden');
+    editingYearId = null;
+    renderYearList();
+  }
+
+  // Render the roster of the EDITED season (editingYearId) with a per-player
+  // Remove control (Reqs 5.4, 5.5). Mirrors the player-view removeFromYearBtn
+  // confirm/shape but scoped to editingYearId, not selectedYearId.
+  function renderEditYearRoster() {
+    const players = rosterPlayersForYear(editingYearId);
+    if (!players.length) {
+      els.editYearRoster.innerHTML = '<p class="muted">No players rostered for this season yet.</p>';
+      return;
+    }
+    els.editYearRoster.innerHTML = players.map((p) => `
+      <div class="field-row" style="align-items:center; margin-bottom:0.5rem">
+        <div class="field" style="margin-bottom:0; flex:1">${escapeHtml(p.Name)}</div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" class="secondary edit-year-remove" data-token="${escapeHtml(p.Token)}">Remove</button>
+        </div>
+      </div>
+    `).join('');
+
+    els.editYearRoster.querySelectorAll('.edit-year-remove').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        els.editYearMessage.innerHTML = '';
+        const token = btn.dataset.token;
+        const player = data.players.find((p) => p.Token === token);
+        const year = (data.years || []).find((y) => y.YearID === editingYearId);
+        const name = player ? player.Name : 'this player';
+        const yearLabel = (year && year.Label) || 'this season';
+        if (!confirm(`Remove ${name} from ${yearLabel}? Their rounds and history are kept -- they just won't show up for this season anymore. You can re-add them later.`)) return;
+        try {
+          await UI.withBusy(btn, 'Removing…', () =>
+            Api.post({ action: 'removePlayerFromYear', session, token, yearId: editingYearId }));
+          await refresh();
+          // The removed player is now an add-existing candidate again, so
+          // re-render both the roster and the add-existing dropdown.
+          renderEditYearRoster();
+          populateEditYearAddExisting();
+        } catch (err) {
+          els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+        }
+      });
+    });
+  }
+
+  // Populate the Edit-Year "Add Existing Player" dropdown with the global
+  // players NOT rostered to the EDITED season (Req 5.6). Scoped to
+  // editingYearId and targeting the editYear controls.
+  function populateEditYearAddExisting() {
+    const notInYear = existingPlayerCandidates(data.players, rosterTokensForYear(editingYearId));
+    els.editYearAddExistingBtn.disabled = !notInYear.length;
+    els.editYearAddExistingSelect.innerHTML = notInYear.length
+      ? notInYear.map((p) => `<option value="${escapeHtml(p.Token)}">${escapeHtml(p.Name)}</option>`).join('')
+      : '<option value="">All players are already rostered for this season</option>';
+  }
+
+  // --- Add-Year walkthrough (Reqs 6.1-6.10, 7.1-7.8) -------------------------
+  // A 4-step guided create flow living in #yearWalk, an in-view sub-panel of
+  // Year Management. Like Edit-Year, it is internal to the view: entering/
+  // stepping it pushes NO history entry, so one browser-Back returns straight
+  // to the main dashboard. All step state lives in the module-level `walk`
+  // model; navigation is gated by AdminLogic.walkStepValidation (label required
+  // to leave Step 1 / to Confirm; Steps 2 & 3 skippable). Named startYearWalk
+  // to match the existing guarded #addYearBtn hook (design calls it
+  // startWalkthrough; this is the same entrypoint).
+  function startYearWalk() {
+    // Fresh model on every launch so a previous run's label/selections never
+    // leak into a new season (Req 6.1).
+    walk = { step: 1, label: '', returningTokens: [], newPlayers: [], result: null };
+    // Focus the walkthrough within the Year Management view: hide the season
+    // list + Add-New-Year control (and any open edit panel) so the walkthrough
+    // reads as the sole content. closeWalkAndShowList() reverses this.
+    els.yearList.classList.add('hidden');
+    els.addYearBtn.classList.add('hidden');
+    if (els.editYear) els.editYear.classList.add('hidden');
+    els.walkMessage.innerHTML = '';
+    els.yearWalk.classList.remove('hidden');
+    renderWalkStep();
+  }
+
+  // Leave the walkthrough and return to the season list, in-view (no history
+  // change -- mirrors closeEditYear). Re-render the list so a newly created
+  // current season is reflected.
+  function closeWalkAndShowList() {
+    els.yearWalk.classList.add('hidden');
+    els.yearList.classList.remove('hidden');
+    els.addYearBtn.classList.remove('hidden');
+    walk = null;
+    renderYearList();
+  }
+
+  // Sync the DOM inputs of the CURRENT step back into the `walk` model before
+  // navigating away from it, so nothing typed is lost on step change or when
+  // building the Step-4 summary. Step 2 (checkboxes) and Step 3 (row inputs)
+  // are already synced live via their change/input listeners, so only Step 1's
+  // label needs reading here; we read it defensively regardless of step.
+  function syncWalkCurrentStep() {
+    if (!walk) return;
+    walk.label = els.walkLabel.value;
+  }
+
+  // Show only the current step, update the progress indicator, gate the
+  // Back/Next/Confirm buttons, and render the current step's content (Reqs 6.2,
+  // 6.3). Back is hidden on Step 1; Next shows on Steps 1-3; Confirm shows only
+  // on Step 4. Next off Step 1 and Confirm are gated by walkStepValidation.
+  function renderWalkStep() {
+    if (!walk) return;
+    const step = walk.step;
+    [els.walkStep1, els.walkStep2, els.walkStep3, els.walkStep4].forEach((el, i) => {
+      el.classList.toggle('hidden', (i + 1) !== step);
+    });
+    els.walkProgress.textContent = `Step ${step} of 4`;
+
+    const gate = walkStepValidation(walk);
+    // Back is always available except on Step 1 (where it would leave the
+    // walkthrough -- that path is the season-list return instead).
+    els.walkBackBtn.classList.toggle('hidden', false);
+    els.walkBackBtn.textContent = step === 1 ? '\u2190 Back to seasons' : '\u2190 Back';
+    // Next on Steps 1-3, Confirm on Step 4.
+    els.walkNextBtn.classList.toggle('hidden', step === 4);
+    els.walkConfirmBtn.classList.toggle('hidden', step !== 4);
+    // Gate: can't leave Step 1 without a valid label; can't Confirm without one.
+    els.walkNextBtn.disabled = (step === 1 && !gate.labelValid);
+    els.walkConfirmBtn.disabled = !gate.canConfirm;
+
+    if (step === 1) renderWalkStep1();
+    else if (step === 2) renderWalkStep2();
+    else if (step === 3) renderWalkStep3();
+    else if (step === 4) renderWalkStep4();
+  }
+
+  // Step 1: the season label input, reflecting the model. Keep walk.label in
+  // sync live so the Next gate updates as the coach types (Reqs 6.1, 6.3).
+  function renderWalkStep1() {
+    els.walkLabel.value = walk.label || '';
+    els.walkLabel.oninput = () => {
+      walk.label = els.walkLabel.value;
+      const gate = walkStepValidation(walk);
+      els.walkNextBtn.disabled = !gate.labelValid;
+    };
+  }
+
+  // Navigate to `step` (clamped 1..4): sync the current step's inputs first,
+  // then switch. Steps 2 & 3 are skippable, so advancing never requires a
+  // selection (Reqs 6.5, 6.7).
+  function walkGoTo(step) {
+    if (!walk) return;
+    syncWalkCurrentStep();
+    walk.step = Math.max(1, Math.min(4, step));
+    renderWalkStep();
+  }
+
+  // Step 2 (returning players, skippable): render an all-optional checklist of
+  // the CURRENT season's roster as import candidates, reflecting any tokens
+  // already chosen. Checkbox changes update walk.returningTokens live. When
+  // there's no current season or it has no roster, show a muted empty message
+  // (Reqs 6.4, 6.5).
+  function renderWalkStep2() {
+    const currentYear = (data.years || []).find(isCurrentYearRow);
+    const candidates = currentYear
+      ? importCandidatesFrom(data.players, data.playerYears, currentYear.YearID)
+      : [];
+    if (!candidates.length) {
+      els.walkReturningList.innerHTML = '<p class="muted">No previous players to import.</p>';
+      return;
+    }
+    const chosen = new Set(walk.returningTokens);
+    els.walkReturningList.innerHTML = candidates.map((p) =>
+      `<label class="import-row"><input type="checkbox" class="walk-returning" ` +
+      `value="${escapeHtml(p.Token)}"${chosen.has(p.Token) ? ' checked' : ''}> ${escapeHtml(p.Name)}</label>`
+    ).join('');
+    els.walkReturningList.querySelectorAll('.walk-returning').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        walk.returningTokens = Array.from(
+          els.walkReturningList.querySelectorAll('.walk-returning:checked')
+        ).map((el) => el.value);
+      });
+    });
+  }
+
+  // Step 3 (new players, skippable): render walk.newPlayers as editable rows
+  // (name + Boy/Girl + remove). To avoid losing in-progress typing on
+  // re-render, the model is updated on every input/change event and the DOM is
+  // only fully re-rendered on add/remove row. Blank rows are allowed here and
+  // dropped later by AdminLogic.collectNewPlayers (Reqs 6.6, 6.7, 6.10).
+  function renderWalkStep3() {
+    if (!walk.newPlayers.length) {
+      els.walkNewPlayers.innerHTML = '<p class="muted">No new players yet. Use “Add Another Player” below, or skip this step.</p>';
+      return;
+    }
+    els.walkNewPlayers.innerHTML = walk.newPlayers.map((row, i) => `
+      <div class="field-row walk-new-row" data-index="${i}" style="align-items:flex-end; margin-bottom:0.5rem">
+        <div class="field" style="margin-bottom:0; flex:1">
+          <label>Name</label>
+          <input type="text" class="walk-new-name" value="${escapeHtml(row.name)}" placeholder="Player name">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Sex</label>
+          <select class="walk-new-sex">
+            <option value="Boy"${row.sex === 'Boy' ? ' selected' : ''}>Boy</option>
+            <option value="Girl"${row.sex === 'Girl' ? ' selected' : ''}>Girl</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" class="secondary walk-new-remove">Remove</button>
+        </div>
+      </div>
+    `).join('');
+
+    els.walkNewPlayers.querySelectorAll('.walk-new-row').forEach((rowEl) => {
+      const idx = Number(rowEl.dataset.index);
+      const nameEl = rowEl.querySelector('.walk-new-name');
+      const sexEl = rowEl.querySelector('.walk-new-sex');
+      // Update the model on each event so re-renders (and the Step-4 summary)
+      // always see the latest values without needing a read-all pass.
+      nameEl.addEventListener('input', () => { walk.newPlayers[idx].name = nameEl.value; });
+      sexEl.addEventListener('change', () => { walk.newPlayers[idx].sex = sexEl.value; });
+      rowEl.querySelector('.walk-new-remove').addEventListener('click', () => {
+        walk.newPlayers.splice(idx, 1);
+        renderWalkStep3();
+      });
+    });
+  }
+
+  // Append a blank new-player row (default sex Boy) and re-render Step 3
+  // (Req 6.6). Live model updates mean no explicit read-back is needed here.
+  function walkAddNewPlayerRow() {
+    if (!walk) return;
+    walk.newPlayers.push({ name: '', sex: 'Boy' });
+    renderWalkStep3();
+  }
+
+  // Step 4 (Review & Confirm): summarize the trimmed label, the selected
+  // returning players, and the valid new players from the pure buildConfirmSummary
+  // (blank rows already dropped). Sync inputs first so the summary is current.
+  // If the label is invalid, say so; Confirm stays disabled via the gate in
+  // renderWalkStep (Reqs 6.9, 6.10, 6.3).
+  function renderWalkStep4() {
+    syncWalkCurrentStep();
+    const summary = buildConfirmSummary(walk, data.players);
+    const labelHtml = summary.label
+      ? `<div class="field" style="margin-bottom:0.5rem"><strong>New season:</strong> ${escapeHtml(summary.label)}</div>`
+      : '<div class="error">A season label is required. Go back to Step 1 to enter one.</div>';
+
+    const returningHtml = summary.returning.length
+      ? `<ul>${summary.returning.map((r) => `<li>${escapeHtml(r.name)}</li>`).join('')}</ul>`
+      : '<p class="muted">None selected.</p>';
+
+    const newHtml = summary.newPlayers.length
+      ? `<ul>${summary.newPlayers.map((p) => `<li>${escapeHtml(p.name)} <span class="muted">(${escapeHtml(p.sex)})</span></li>`).join('')}</ul>`
+      : '<p class="muted">None.</p>';
+
+    els.walkReview.innerHTML = `
+      ${labelHtml}
+      <h4 style="margin-bottom:0.25rem">Returning players (${summary.returning.length})</h4>
+      ${returningHtml}
+      <h4 style="margin-bottom:0.25rem">New players to create (${summary.newPlayers.length})</h4>
+      ${newHtml}
+    `;
+  }
+
+  // Confirm sequence -- best-effort partial-failure creation, implementing the
+  // design pseudocode EXACTLY (Reqs 7.1-7.8). Guarded by walkStepValidation:
+  //   1. createYear(label, returningTokens) exactly once. On reject: surface the
+  //      error, create nothing, STAY on Step 4.
+  //   2. On success, addPlayer(name, sex, yearId) per collected new row,
+  //      partitioning into created (with playerLink) / failed -- NO rollback, the
+  //      year and successes are kept regardless of failures.
+  //   3. selectedYearId = yearId; Store.writeViewingYearId(yearId); await refresh().
+  //   4. Show a success screen listing created players + copyable links and any
+  //      failures with retry-in-edit-year guidance, plus a Done control back to
+  //      the season list.
+  async function walkConfirm() {
+    if (!walk) return;
+    syncWalkCurrentStep();
+    if (!walkStepValidation(walk).canConfirm) return;   // gate (label required)
+    els.walkMessage.innerHTML = '';
+
+    const label = walk.label.trim();
+    const returningTokens = walk.returningTokens.slice();
+
+    let yearRes;
+    try {
+      yearRes = await UI.withBusy(els.walkConfirmBtn, 'Creating…', () =>
+        Api.post({ action: 'createYear', session, label, playerTokens: returningTokens }));
+    } catch (err) {
+      // createYear failed: nothing created, stay in the walkthrough (Req 7.5).
+      els.walkMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+      return;
+    }
+
+    const yearId = yearRes.yearId;
+    const created = [];
+    const failed = [];
+    // Drop blank rows; create the rest best-effort (Reqs 7.2, 7.3, 7.6).
+    const newRows = collectNewPlayers(walk.newPlayers);
+    for (const row of newRows) {
+      try {
+        const rec = await Api.post({ action: 'addPlayer', session, name: row.name, sex: row.sex, yearId });
+        created.push({ name: row.name, sex: row.sex, token: rec.Token, link: playerLink(rec.Token) });
+      } catch (err) {
+        // Keep going -- no rollback of the year or already-created players.
+        failed.push({ name: row.name, sex: row.sex, message: err.message });
+      }
+    }
+
+    walk.result = { yearId, created, failed };
+
+    // Select + persist the new season and refresh so both the Year Management
+    // view and the Main_Dashboard reflect it (Req 7.8).
+    selectedYearId = yearId;
+    Store.writeViewingYearId(yearId);
+    await refresh();
+
+    renderWalkSuccess(label, created, failed);
+  }
+
+  // Success screen after confirm (Reqs 7.4, 7.7). Lists created players with a
+  // copyable secret link each, any failures with guidance to retry via the
+  // season's Edit panel, and a Done control that returns to the season list.
+  // Rendered into #walkReview with the stepper buttons hidden.
+  function renderWalkSuccess(label, created, failed) {
+    els.walkProgress.textContent = '';
+    els.walkBackBtn.classList.add('hidden');
+    els.walkNextBtn.classList.add('hidden');
+    els.walkConfirmBtn.classList.add('hidden');
+    // Show the review pane as the success surface; hide the other steps.
+    [els.walkStep1, els.walkStep2, els.walkStep3].forEach((el) => el.classList.add('hidden'));
+    els.walkStep4.classList.remove('hidden');
+
+    els.walkMessage.innerHTML = `<div class="success">Created season “${escapeHtml(label)}”.</div>`;
+
+    const createdHtml = created.length
+      ? created.map((c) => `
+        <div class="link-box" style="margin-bottom:0.5rem">
+          <div class="field" style="margin-bottom:0.25rem; flex:1">${escapeHtml(c.name)} <span class="muted">(${escapeHtml(c.sex)})</span></div>
+          <input type="text" class="walk-created-link" readonly value="${escapeHtml(c.link)}">
+          <button type="button" class="secondary walk-copy-link">Copy</button>
+        </div>
+      `).join('')
+      : '<p class="muted">No new players were created.</p>';
+
+    const failedHtml = failed.length
+      ? `<div class="error" style="margin-top:0.75rem">
+          <p>These players could not be created. The season and the players above were kept — open <strong>Edit</strong> for this season and use “Add brand-new player” to retry:</p>
+          <ul>${failed.map((f) => `<li>${escapeHtml(f.name)} <span class="muted">(${escapeHtml(f.sex)})</span> — ${escapeHtml(f.message)}</li>`).join('')}</ul>
+        </div>`
+      : '';
+
+    els.walkReview.innerHTML = `
+      <h4 style="margin-bottom:0.25rem">New players created (${created.length})</h4>
+      ${createdHtml}
+      ${failedHtml}
+      <div style="margin-top:1rem"><button type="button" id="walkDoneBtn">Done</button></div>
+    `;
+
+    // Copy buttons for each created player's link (reuse the shared helper).
+    els.walkReview.querySelectorAll('.link-box').forEach((box) => {
+      const input = box.querySelector('.walk-created-link');
+      const btn = box.querySelector('.walk-copy-link');
+      if (input && btn) btn.addEventListener('click', () => copyToClipboard(input));
+    });
+    // Done returns to the season list (which now reflects the new season).
+    const doneBtn = document.getElementById('walkDoneBtn');
+    if (doneBtn) doneBtn.addEventListener('click', () => closeWalkAndShowList());
+  }
+
+  // --- Hamburger menu (Reqs 1.1-1.9) -----------------------------------------
+  // The menu panel is a dropdown shown/hidden via the `.hidden` class on
+  // #menuPanel (styled in styles.css). Open/closed state is mirrored onto
+  // #menuToggle's aria-expanded and #menuPanel's aria-hidden for accessibility.
+  function openMenu() {
+    els.menuPanel.classList.remove('hidden');
+    els.menuToggle.setAttribute('aria-expanded', 'true');
+    els.menuPanel.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeMenu() {
+    els.menuPanel.classList.add('hidden');
+    els.menuToggle.setAttribute('aria-expanded', 'false');
+    els.menuPanel.setAttribute('aria-hidden', 'true');
+  }
+
+  // Open when closed, close when open -- state is derived from whether the
+  // panel currently carries `.hidden` so it always tracks the real DOM.
+  function toggleMenu() {
+    if (els.menuPanel.classList.contains('hidden')) {
+      openMenu();
+    } else {
+      closeMenu();
     }
   }
 
@@ -909,8 +1462,11 @@
     populateYearSelect();
     renderTeamTiles();
     renderRoster();
-    populateAddExistingSelect();
-    renderImportCandidates();
+    // If the Year Management view is open during a refresh (e.g. after a
+    // make-current or edit-year mutation), re-render the season list so it
+    // stays coherent with the freshly-loaded data. The Edit-Year and
+    // walkthrough handlers re-render their own sub-regions.
+    if (yearMgmtOpen) renderYearList();
     els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.add('hidden');
   }
@@ -942,36 +1498,6 @@
     }
   });
 
-  els.addPlayerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    els.addPlayerMessage.innerHTML = '';
-    els.newLinkBox.classList.add('hidden');
-    try {
-      const result = await UI.withBusy(els.addPlayerBtn, 'Adding…', () =>
-        Api.post({ action: 'addPlayer', session, name: els.newPlayerName.value, sex: els.newPlayerSex.value, yearId: selectedYearId }));
-      els.addPlayerMessage.innerHTML = `<div class="success">Added ${escapeHtml(els.newPlayerName.value)}.</div>`;
-      els.newLinkInput.value = playerLink(result.Token);
-      els.newLinkBox.classList.remove('hidden');
-      els.addPlayerForm.reset();
-      await refresh();
-    } catch (err) {
-      els.addPlayerMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    }
-  });
-
-  els.addExistingBtn.addEventListener('click', async () => {
-    els.addExistingMessage.innerHTML = '';
-    const token = els.addExistingSelect.value;
-    if (!token) return;
-    try {
-      await UI.withBusy(els.addExistingBtn, 'Adding…', () =>
-        Api.post({ action: 'addPlayerToYear', session, token, yearId: selectedYearId }));
-      await refresh();
-    } catch (err) {
-      els.addExistingMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    }
-  });
-
   els.removeFromYearBtn.addEventListener('click', async () => {
     if (!currentPlayerToken) return;
     const player = data.players.find((p) => p.Token === currentPlayerToken);
@@ -997,44 +1523,10 @@
     // Persist the newly-chosen season before any re-render so the next load
     // can restore it (Reqs 2.2, 3.1). The guarded Store no-ops on failure.
     Store.writeViewingYearId(selectedYearId);
-    syncSetCurrentYearBtn();
     renderTeamTiles();
     renderRoster();
-    populateAddExistingSelect();
     els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.add('hidden');
-  });
-
-  els.setCurrentYearBtn.addEventListener('click', async () => {
-    els.yearMessage.innerHTML = '';
-    try {
-      await UI.withBusy(els.setCurrentYearBtn, 'Saving…', () =>
-        Api.post({ action: 'setCurrentYear', session, yearId: selectedYearId }));
-      await refresh();
-    } catch (err) {
-      els.yearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    }
-  });
-
-  els.createYearBtn.addEventListener('click', async () => {
-    els.yearMessage.innerHTML = '';
-    const label = els.newYearLabel.value.trim();
-    if (!label) {
-      els.yearMessage.innerHTML = '<div class="error">Enter a label for the new season first.</div>';
-      return;
-    }
-    try {
-      const result = await UI.withBusy(els.createYearBtn, 'Creating…', () =>
-        Api.post({ action: 'createYear', session, label, playerTokens: collectImportSelection() }));
-      els.newYearLabel.value = '';
-      selectedYearId = result.yearId;
-      // Persist the newly-created season so the next load restores it (Reqs 3.5, 4.5, 4.6).
-      Store.writeViewingYearId(result.yearId);
-      await refresh();
-      els.yearMessage.innerHTML = `<div class="success">Created "${escapeHtml(label)}" and made it the current season.</div>`;
-    } catch (err) {
-      els.yearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    }
   });
 
   els.deletePlayerBtn.addEventListener('click', deletePlayer);
@@ -1179,10 +1671,160 @@
     input.select();
     navigator.clipboard?.writeText(input.value).catch(() => document.execCommand('copy'));
   }
-  els.copyLinkBtn.addEventListener('click', () => copyToClipboard(els.newLinkInput));
   els.copyDetailLinkBtn.addEventListener('click', () => copyToClipboard(els.playerDetailLink));
 
   window.addEventListener('popstate', onPopState);
+
+  // Year Management in-view Back control -> close via the on-page path
+  // (fromPopstate=false) so history.back() consumes the pushed entry (Req 3.3).
+  els.yearMgmtBack.addEventListener('click', () => closeYearMgmt(false));
+
+  // --- Edit-Year panel wiring (Reqs 5.3, 5.7, 5.9, 5.10) ---------------------
+  // All handlers target editingYearId, never selectedYearId. After each
+  // mutation they call refresh() (which re-renders the main dashboard for
+  // selectedYearId -- desired) then re-render the Edit-Year sub-regions for
+  // editingYearId. The Year Management view stays open throughout (refresh()
+  // never touches #yearMgmt or #editYear).
+
+  // Back to the season list (in-view, no history change, Req 5.1).
+  els.editYearBack.addEventListener('click', () => closeEditYear());
+
+  // Make the edited season current (Req 5.3): setCurrentYear{editingYearId},
+  // then refresh and re-open the panel so the now-current season hides its
+  // Make-current button.
+  els.editYearMakeCurrentBtn.addEventListener('click', async () => {
+    els.editYearMessage.innerHTML = '';
+    if (!editingYearId) return;
+    const yearId = editingYearId;
+    try {
+      await UI.withBusy(els.editYearMakeCurrentBtn, 'Saving…', () =>
+        Api.post({ action: 'setCurrentYear', session, yearId }));
+      await refresh();
+      // Re-open the panel for the same season so the make-current button hides
+      // and the roster/candidates reflect the refreshed data.
+      openEditYear(yearId);
+      els.editYearMessage.innerHTML = '<div class="success">Updated the current season.</div>';
+    } catch (err) {
+      els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  // Add an existing (unrostered) player to the edited season (Req 5.7):
+  // addPlayerToYear{token, editingYearId}, then re-render roster + candidates.
+  els.editYearAddExistingBtn.addEventListener('click', async () => {
+    els.editYearAddExistingMessage.innerHTML = '';
+    const token = els.editYearAddExistingSelect.value;
+    if (!token || !editingYearId) return;
+    try {
+      await UI.withBusy(els.editYearAddExistingBtn, 'Adding…', () =>
+        Api.post({ action: 'addPlayerToYear', session, token, yearId: editingYearId }));
+      await refresh();
+      renderEditYearRoster();
+      populateEditYearAddExisting();
+    } catch (err) {
+      els.editYearAddExistingMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  // Add a brand-new player to the edited season (Reqs 5.9, 5.10):
+  // addPlayer{name, sex, editingYearId}, show the generated link, re-render.
+  els.editYearAddPlayerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.editYearAddPlayerMessage.innerHTML = '';
+    els.editYearNewLinkBox.classList.add('hidden');
+    if (!editingYearId) return;
+    const name = els.editYearNewPlayerName.value;
+    try {
+      const result = await UI.withBusy(els.editYearAddPlayerBtn, 'Adding…', () =>
+        Api.post({ action: 'addPlayer', session, name, sex: els.editYearNewPlayerSex.value, yearId: editingYearId }));
+      els.editYearAddPlayerMessage.innerHTML = `<div class="success">Added ${escapeHtml(name)}.</div>`;
+      els.editYearNewLinkInput.value = playerLink(result.Token);
+      els.editYearNewLinkBox.classList.remove('hidden');
+      els.editYearAddPlayerForm.reset();
+      await refresh();
+      renderEditYearRoster();
+      populateEditYearAddExisting();
+    } catch (err) {
+      els.editYearAddPlayerMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  // Copy the generated new-player link (reuses the shared copyToClipboard).
+  els.editYearCopyLinkBtn.addEventListener('click', () => copyToClipboard(els.editYearNewLinkInput));
+
+  // Add New Year launches the 4-step walkthrough (Req 4.7). startYearWalk is
+  // provided by Task 8.1; guard so this lands independently (matches the Task
+  // 4.1 menu-wiring pattern).
+  els.addYearBtn.addEventListener('click', () => {
+    if (typeof startYearWalk === 'function') startYearWalk();
+    // else: walkthrough controller (Task 8.1) not present yet -- no-op.
+  });
+
+  // Walkthrough navigation (Tasks 8.1-8.4). Back on Step 1 leaves the
+  // walkthrough and returns to the season list (in-view, no history); Back on
+  // Steps 2-4 steps back; Next advances (clamped); Confirm runs the best-effort
+  // creation sequence. Add-Another-Player appends a Step-3 row.
+  els.walkBackBtn.addEventListener('click', () => {
+    if (!walk) return;
+    if (walk.step === 1) {
+      closeWalkAndShowList();
+    } else {
+      walkGoTo(walk.step - 1);
+    }
+  });
+  els.walkNextBtn.addEventListener('click', () => {
+    if (walk) walkGoTo(walk.step + 1);
+  });
+  els.walkAddPlayerRow.addEventListener('click', () => walkAddNewPlayerRow());
+  els.walkConfirmBtn.addEventListener('click', () => walkConfirm());
+
+  // Hamburger menu wiring (Reqs 1.2-1.9). #menuToggle is a real <button>, so
+  // Enter/Space activate it natively; aria-expanded is kept in sync by
+  // open/close (Reqs 1.8, 1.9).
+  els.menuToggle.addEventListener('click', (e) => {
+    // Stop propagation so the document outside-click handler below doesn't see
+    // this same click and immediately re-close a menu we just opened (Req 1.7).
+    e.stopPropagation();
+    toggleMenu();
+  });
+
+  // Outside-click closes the menu when open and the click landed outside both
+  // the panel and the toggle (Req 1.7).
+  document.addEventListener('click', (e) => {
+    if (els.menuPanel.classList.contains('hidden')) return;
+    if (els.menuPanel.contains(e.target) || els.menuToggle.contains(e.target)) return;
+    closeMenu();
+  });
+
+  // Escape closes the menu and returns focus to the toggle (Req 1.6).
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.menuPanel.classList.contains('hidden')) {
+      closeMenu();
+      els.menuToggle.focus();
+    }
+  });
+
+  // Menu items close the panel first (Req 1.5), then navigate.
+  // "Dashboard" closes any open full-screen view and shows the Main_Dashboard
+  // (Req 1.3); "Year Management" opens the Year_Management_View (Req 1.4).
+  // NOTE: openYearMgmt()/closeYearMgmt() are provided by Task 5.1 (the Year
+  // Management view-state controller) and may not be present yet. The typeof
+  // guards let this menu wiring land independently: once 5.1 is merged the
+  // hoisted declarations resolve and the calls take effect.
+  els.menuDashboard.addEventListener('click', () => {
+    closeMenu();
+    // Close whichever full-screen view is open and return to the Main_Dashboard
+    // (Req 1.3). Only one is ever open (single-open invariant) and each close is
+    // guarded to no-op when its view isn't open, so calling both defensively is
+    // safe -- at most one does anything, and neither touches history when closed.
+    closeYearMgmt(false);
+    closePlayerDetail(false);
+  });
+  els.menuYearMgmt.addEventListener('click', () => {
+    closeMenu();
+    if (typeof openYearMgmt === 'function') openYearMgmt();
+    // else: Year Management controller (Task 5.1) not present yet -- no-op.
+  });
 
   // Try to resume an existing session.
   (async function init() {

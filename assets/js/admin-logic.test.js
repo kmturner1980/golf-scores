@@ -25,6 +25,12 @@
   var existingPlayerCandidates = AdminLogic.existingPlayerCandidates;
   var importCandidatesFrom = AdminLogic.importCandidatesFrom;
   var roundCardFields = AdminLogic.roundCardFields;
+  var isValidYearLabel = AdminLogic.isValidYearLabel;
+  var walkStepValidation = AdminLogic.walkStepValidation;
+  var validateNewPlayerRow = AdminLogic.validateNewPlayerRow;
+  var collectNewPlayers = AdminLogic.collectNewPlayers;
+  var buildConfirmSummary = AdminLogic.buildConfirmSummary;
+  var yearListRows = AdminLogic.yearListRows;
 
   var PROP_ITERATIONS = 200; // >= 100 as required by the spec
 
@@ -626,6 +632,398 @@
       assertEqual(actual[3].value, row.holesPlayed, 'Holes passthrough');
       assertEqual(actual[5].value, row.diff, 'Diff passthrough');
     }
+  });
+
+  // =========================================================================
+  // ==== admin-year-management-nav ==========================================
+  // =========================================================================
+
+  // ---- Generators for label / walkthrough / new-player rows --------------
+  // A pool of label-ish strings spanning the input space: blank, whitespace-
+  // only (spaces/tabs/newlines), real labels, and real labels surrounded by
+  // whitespace, so the trim-then-nonempty rule is exercised on the boundaries.
+  var BLANK_LABELS = ['', ' ', '   ', '\t', '\n', '\t\n ', '  \r\n  '];
+  var REAL_LABELS = ['2027-2028', 'x', 'Season A', '  2027-2028  ', '\t Spring \n', 'a', '0'];
+
+  // Non-string / nullish label values that must all be treated as invalid.
+  var NONSTRING_LABELS = [null, undefined];
+
+  function genLabelValue() {
+    var choice = randInt(0, 3);
+    if (choice === 0) return pick(BLANK_LABELS);       // blank / whitespace-only -> invalid
+    if (choice === 1) return pick(REAL_LABELS);        // has a non-whitespace char -> valid
+    if (choice === 2) return pick(NONSTRING_LABELS);   // null/undefined -> invalid
+    // A random string that MAY be blank or real (mix), built from spaces + chars.
+    var chars = ' \t\nabcXYZ019';
+    var len = randInt(0, 6);
+    var s = '';
+    for (var i = 0; i < len; i++) s += chars.charAt(randInt(0, chars.length - 1));
+    return s;
+  }
+
+  // Reference: valid iff there is at least one non-whitespace character.
+  function labelHasNonWhitespace(label) {
+    if (label == null) return false;
+    return /\S/.test(String(label));
+  }
+
+  var SEX_POOL = ['Boy', 'Girl', 'boy', 'girl', 'BOY', 'Other', '', null, undefined];
+  var NEW_NAME_POOL = ['Alice', 'Bob', '  Charlie  ', '', '   ', '\tZoe\n', 'x', null, undefined, 42];
+
+  function genNewPlayerRow() {
+    // Occasionally emit a non-object row to exercise defensive handling.
+    if (rand() < 0.08) return pick([null, undefined, 'nope', 7]);
+    return { name: pick(NEW_NAME_POOL), sex: pick(SEX_POOL) };
+  }
+
+  function genNewPlayerRows() {
+    var len = randInt(0, 7); // includes the empty-list boundary
+    var rows = [];
+    for (var i = 0; i < len; i++) rows.push(genNewPlayerRow());
+    return rows;
+  }
+
+  // Reference validity for a single row, mirroring the plain-language contract.
+  function refRowValid(row) {
+    var r = row || {};
+    var name = r.name == null ? '' : String(r.name).trim();
+    var sex = (r.sex === 'Boy' || r.sex === 'Girl') ? r.sex : null;
+    return name.length > 0 && sex !== null;
+  }
+
+  // A walkthrough model with a mix of label validity, arbitrary returning
+  // tokens, and arbitrary new-player rows (steps 2 & 3 must be irrelevant to
+  // canConfirm). Sometimes returningTokens/newPlayers are non-arrays.
+  var TOKEN_POOL = ['T1', 'T2', 'T3', 'Tx', 'stale', 'T1'];
+
+  function genReturningTokens() {
+    var shape = randInt(0, 3);
+    if (shape === 0) return [];
+    if (shape === 1) return null;          // non-array -> treated as empty
+    var len = randInt(0, 5);
+    var arr = [];
+    for (var i = 0; i < len; i++) arr.push(pick(TOKEN_POOL));
+    return arr;
+  }
+
+  function genWalk() {
+    return {
+      step: randInt(1, 4),
+      label: genLabelValue(),
+      returningTokens: genReturningTokens(),
+      newPlayers: rand() < 0.15 ? pick([null, undefined, 'x']) : genNewPlayerRows()
+    };
+  }
+
+  // Player list whose Tokens overlap the TOKEN_POOL so some returning tokens
+  // resolve to a Name and some are unknown; includes duplicate/edge names.
+  function genPlayerLookup() {
+    var candidates = ['T1', 'T2', 'T3', 'Tx'];
+    var len = randInt(0, candidates.length);
+    var players = [];
+    var used = {};
+    for (var i = 0; i < len; i++) {
+      var tok;
+      do { tok = pick(candidates); } while (used[tok]);
+      used[tok] = true;
+      players.push({ Token: tok, Name: pick(NAME_POOL) });
+    }
+    return players;
+  }
+
+  // ---- TASK 1.2 ----------------------------------------------------------
+  // Feature: admin-year-management-nav, Property 3: Label validity ignores surrounding whitespace
+  // Validates: Requirements 6.3
+  test('Property 3: isValidYearLabel is true iff the trimmed label is non-empty', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var label = genLabelValue();
+      var actual = isValidYearLabel(label);
+      var expected = labelHasNonWhitespace(label);
+      assertEqual(
+        actual,
+        expected,
+        'label validity mismatch for label=' + JSON.stringify(label)
+      );
+    }
+  });
+
+  test('Property 3 boundary: blank / whitespace-only / nullish labels are invalid', function () {
+    assertEqual(isValidYearLabel(''), false, 'empty string invalid');
+    assertEqual(isValidYearLabel('   '), false, 'spaces-only invalid');
+    assertEqual(isValidYearLabel('\t\n '), false, 'tabs/newlines-only invalid');
+    assertEqual(isValidYearLabel(null), false, 'null invalid');
+    assertEqual(isValidYearLabel(undefined), false, 'undefined invalid');
+  });
+
+  test('Property 3 boundary: any non-whitespace char (even surrounded by whitespace) is valid', function () {
+    assertEqual(isValidYearLabel('x'), true, 'single char valid');
+    assertEqual(isValidYearLabel('2027-2028'), true, 'a real label valid');
+    assertEqual(isValidYearLabel('  x  '), true, 'char surrounded by whitespace valid');
+    assertEqual(isValidYearLabel('\t Spring \n'), true, 'word surrounded by whitespace valid');
+    assertEqual(isValidYearLabel('0'), true, 'the string "0" valid (non-whitespace)');
+  });
+
+  // ---- TASK 1.3 ----------------------------------------------------------
+  // Feature: admin-year-management-nav, Property 4: Confirm is gated only by the label (steps 2 and 3 are skippable)
+  // Validates: Requirements 6.3, 6.5, 6.7, 6.8
+  test('Property 4: canConfirm === isValidYearLabel(label) regardless of returning/new-player contents', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var walk = genWalk();
+      var v = walkStepValidation(walk);
+      var labelValid = isValidYearLabel(walk.label);
+
+      // Confirm is gated ONLY by the label; steps 2 & 3 contents are irrelevant.
+      assertEqual(
+        v.canConfirm,
+        labelValid,
+        'canConfirm must equal label validity for walk=' + JSON.stringify(walk)
+      );
+      // labelValid / step1Complete are consistent with the design's shape.
+      assertEqual(v.labelValid, labelValid, 'labelValid must equal isValidYearLabel(label)');
+      assertEqual(v.step1Complete, labelValid, 'step1Complete === labelValid');
+    }
+  });
+
+  test('Property 4 boundary: valid label with no players -> canConfirm true (empty season allowed)', function () {
+    var walk = { step: 4, label: '2027-2028', returningTokens: [], newPlayers: [] };
+    assertEqual(walkStepValidation(walk).canConfirm, true, 'empty season with valid label confirms');
+  });
+
+  test('Property 4 boundary: invalid label with many players -> canConfirm false', function () {
+    var walk = {
+      step: 4,
+      label: '   ',
+      returningTokens: ['T1', 'T2'],
+      newPlayers: [{ name: 'Alice', sex: 'Girl' }, { name: 'Bob', sex: 'Boy' }]
+    };
+    assertEqual(walkStepValidation(walk).canConfirm, false, 'blank label blocks confirm despite players');
+  });
+
+  // ---- TASK 1.4 ----------------------------------------------------------
+  // Feature: admin-year-management-nav, Property 5: New-player collection drops blank rows and preserves order
+  // Validates: Requirements 6.10
+  test('Property 5: collectNewPlayers keeps exactly the valid rows, trimmed and in order', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var rows = genNewPlayerRows();
+      var result = collectNewPlayers(rows);
+
+      // Reference: filter to rows valid per validateNewPlayerRow, trimming names.
+      var expected = rows
+        .filter(function (r) { return validateNewPlayerRow(r).valid; })
+        .map(function (r) {
+          var v = validateNewPlayerRow(r);
+          return { name: v.name, sex: v.sex };
+        });
+
+      // 1. Output equals filtering by validateNewPlayerRow(...).valid.
+      assertEqual(
+        JSON.stringify(result),
+        JSON.stringify(expected),
+        'collectNewPlayers must equal the valid-row filter for rows=' + JSON.stringify(rows)
+      );
+
+      // 2. Length equals the count of valid inputs.
+      var validCount = rows.filter(refRowValid).length;
+      assertEqual(result.length, validCount, 'output length must equal valid input count');
+
+      // 3. Every output row has a non-empty trimmed name and a Boy/Girl sex.
+      result.forEach(function (r) {
+        assert(typeof r.name === 'string' && r.name.length > 0, 'output name must be non-empty: ' + JSON.stringify(r));
+        assertEqual(r.name, r.name.trim(), 'output name must already be trimmed');
+        assert(r.sex === 'Boy' || r.sex === 'Girl', 'output sex must be Boy/Girl: ' + JSON.stringify(r));
+      });
+
+      // 4. Order preserved relative to input: the sequence of valid trimmed
+      //    names in the input matches the output name sequence.
+      var expectedNames = rows
+        .filter(refRowValid)
+        .map(function (r) { return String(r.name).trim(); });
+      var actualNames = result.map(function (r) { return r.name; });
+      assertEqual(
+        JSON.stringify(actualNames),
+        JSON.stringify(expectedNames),
+        'valid rows must preserve their relative order'
+      );
+    }
+  });
+
+  test('Property 5 boundary: non-array input yields an empty array', function () {
+    assertEqual(JSON.stringify(collectNewPlayers(null)), '[]', 'null -> []');
+    assertEqual(JSON.stringify(collectNewPlayers(undefined)), '[]', 'undefined -> []');
+    assertEqual(JSON.stringify(collectNewPlayers('nope')), '[]', 'string -> []');
+    assertEqual(JSON.stringify(collectNewPlayers([])), '[]', 'empty array -> []');
+  });
+
+  test('validateNewPlayerRow on boundary rows (trim, bad/missing sex, blank name)', function () {
+    // Valid: trims the name, keeps Boy/Girl.
+    var okBoy = validateNewPlayerRow({ name: '  Bob  ', sex: 'Boy' });
+    assertEqual(okBoy.valid, true, 'trimmed name + Boy is valid');
+    assertEqual(okBoy.name, 'Bob', 'name is trimmed');
+    assertEqual(okBoy.sex, 'Boy', 'Boy preserved');
+    var okGirl = validateNewPlayerRow({ name: 'Alice', sex: 'Girl' });
+    assertEqual(okGirl.valid, true, 'name + Girl is valid');
+    assertEqual(okGirl.sex, 'Girl', 'Girl preserved');
+
+    // Invalid: blank / whitespace-only name.
+    assertEqual(validateNewPlayerRow({ name: '', sex: 'Boy' }).valid, false, 'empty name invalid');
+    assertEqual(validateNewPlayerRow({ name: '   ', sex: 'Girl' }).valid, false, 'whitespace name invalid');
+
+    // Invalid: bad / missing / miscased sex normalizes to null.
+    var badSex = validateNewPlayerRow({ name: 'Zoe', sex: 'boy' });
+    assertEqual(badSex.valid, false, 'lowercase sex invalid');
+    assertEqual(badSex.sex, null, 'bad sex normalizes to null');
+    assertEqual(validateNewPlayerRow({ name: 'Zoe', sex: 'Other' }).valid, false, 'unknown sex invalid');
+    assertEqual(validateNewPlayerRow({ name: 'Zoe' }).valid, false, 'missing sex invalid');
+    assertEqual(validateNewPlayerRow({ name: 'Zoe' }).sex, null, 'missing sex -> null');
+
+    // Defensive: a non-object row does not throw and is invalid.
+    assertEqual(validateNewPlayerRow(null).valid, false, 'null row invalid');
+    assertEqual(validateNewPlayerRow(undefined).valid, false, 'undefined row invalid');
+  });
+
+  // ---- TASK 1.5 ----------------------------------------------------------
+  // Feature: admin-year-management-nav, Property 6: Confirm summary reflects the model faithfully
+  // Validates: Requirements 6.9
+  test('Property 6: buildConfirmSummary reflects label (trimmed), returning (in order, names resolved), and new players', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var walk = genWalk();
+      var players = genPlayerLookup();
+      var summary = buildConfirmSummary(walk, players);
+
+      // Name lookup by token for the reference.
+      var byToken = {};
+      players.forEach(function (p) { if (p && p.Token != null) byToken[p.Token] = p.Name; });
+      var tokens = Array.isArray(walk.returningTokens) ? walk.returningTokens : [];
+
+      // 1. label is the trimmed label.
+      var expectedLabel = walk.label == null ? '' : String(walk.label).trim();
+      assertEqual(summary.label, expectedLabel, 'summary label must be the trimmed label');
+
+      // 2. returning length === returningTokens length and order preserved.
+      assertEqual(
+        summary.returning.length,
+        tokens.length,
+        'returning length must equal the returningTokens length'
+      );
+      for (var j = 0; j < tokens.length; j++) {
+        var tok = tokens[j];
+        assertEqual(summary.returning[j].token, tok, 'returning token order must be preserved at index ' + j);
+        // 3. Known tokens resolve to the right Name; unknown tokens give ''.
+        var expectedName = byToken[tok] == null ? '' : byToken[tok];
+        assertEqual(
+          summary.returning[j].name,
+          expectedName,
+          'returning name must resolve from players (unknown -> "") for token=' + JSON.stringify(tok)
+        );
+      }
+
+      // 4. newPlayers matches collectNewPlayers(walk.newPlayers).
+      assertEqual(
+        JSON.stringify(summary.newPlayers),
+        JSON.stringify(collectNewPlayers(walk.newPlayers)),
+        'summary.newPlayers must equal collectNewPlayers(walk.newPlayers)'
+      );
+    }
+  });
+
+  test('Property 6 boundary: empty returningTokens -> empty returning list', function () {
+    var summary = buildConfirmSummary(
+      { label: '2027', returningTokens: [], newPlayers: [] },
+      [{ Token: 'T1', Name: 'Alice' }]
+    );
+    assertEqual(summary.returning.length, 0, 'no tokens -> empty returning');
+    assertEqual(summary.label, '2027', 'label passes through trimmed');
+  });
+
+  test('Property 6 boundary: unknown token resolves to an empty name but is still included', function () {
+    var summary = buildConfirmSummary(
+      { label: '  2027  ', returningTokens: ['T1', 'ghost'], newPlayers: [] },
+      [{ Token: 'T1', Name: 'Alice' }]
+    );
+    assertEqual(summary.label, '2027', 'label is trimmed');
+    assertEqual(summary.returning.length, 2, 'both tokens included, order preserved');
+    assertEqual(summary.returning[0].token, 'T1', 'first token preserved');
+    assertEqual(summary.returning[0].name, 'Alice', 'known token resolves to its name');
+    assertEqual(summary.returning[1].token, 'ghost', 'unknown token preserved');
+    assertEqual(summary.returning[1].name, '', 'unknown token resolves to empty name');
+  });
+
+  test('Property 6 boundary: empty players list -> all returning names are empty', function () {
+    var summary = buildConfirmSummary(
+      { label: 'S', returningTokens: ['T1', 'T2'], newPlayers: [{ name: 'Bob', sex: 'Boy' }] },
+      []
+    );
+    assertEqual(summary.returning.length, 2, 'tokens preserved with no player lookup');
+    assertEqual(summary.returning[0].name, '', 'no players -> empty name');
+    assertEqual(summary.returning[1].name, '', 'no players -> empty name');
+    assertEqual(JSON.stringify(summary.newPlayers), JSON.stringify([{ name: 'Bob', sex: 'Boy' }]), 'new players collected');
+  });
+
+  // ---- TASK 1.6 ----------------------------------------------------------
+  // Feature: admin-year-management-nav, Property 1: Season list is complete and newest-first
+  // Validates: Requirements 4.1, 4.2
+  test('Property 1: yearListRows preserves every YearID exactly once, newest-first by CreatedAt', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var years = genSeasonList(); // reused generator (varied CreatedAt incl. ties, IsCurrent encodings, empty)
+      var rows = yearListRows(years, isCurrentYearRow);
+
+      // 1. Output length === input length.
+      assertEqual(rows.length, years.length, 'row count must equal season count');
+
+      // 2. The multiset of YearIDs is preserved (no dupes, none dropped).
+      var inputIds = years.map(function (y) { return y.YearID; }).slice().sort();
+      var outputIds = rows.map(function (r) { return r.yearId; }).slice().sort();
+      assertEqual(
+        JSON.stringify(outputIds),
+        JSON.stringify(inputIds),
+        'YearID multiset must be preserved for years=' + JSON.stringify(years)
+      );
+
+      // 3. Sorted non-increasing by CreatedAt (newest-first).
+      for (var j = 1; j < rows.length; j++) {
+        var prev = years.find((function (id) { return function (y) { return y.YearID === id; }; })(rows[j - 1].yearId));
+        var cur = years.find((function (id) { return function (y) { return y.YearID === id; }; })(rows[j].yearId));
+        assert(
+          new Date(prev.CreatedAt).getTime() >= new Date(cur.CreatedAt).getTime(),
+          'rows must be ordered non-increasing by CreatedAt'
+        );
+      }
+
+      // 4. Each row's label matches its season's Label.
+      rows.forEach(function (r) {
+        var y = years.find((function (id) { return function (yy) { return yy.YearID === id; }; })(r.yearId));
+        assertEqual(r.label, y.Label, 'row label must match the season Label');
+      });
+    }
+  });
+
+  // Feature: admin-year-management-nav, Property 2: Make-current visibility is exactly the non-current seasons
+  // Validates: Requirements 4.2, 4.4, 4.5, 5.3
+  test('Property 2: each row isCurrent matches the predicate and canMakeCurrent === !isCurrent', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var years = genSeasonList();
+      var rows = yearListRows(years, isCurrentYearRow);
+
+      rows.forEach(function (r) {
+        var y = years.find((function (id) { return function (yy) { return yy.YearID === id; }; })(r.yearId));
+        assertEqual(
+          r.isCurrent,
+          isCurrentYearRow(y),
+          'row.isCurrent must match isCurrentYearRow(matchingYear) for ' + JSON.stringify(y)
+        );
+        assertEqual(
+          r.canMakeCurrent,
+          !r.isCurrent,
+          'canMakeCurrent must be exactly the negation of isCurrent'
+        );
+      });
+    }
+  });
+
+  test('Property 1/2 boundary: empty season list yields an empty array', function () {
+    assertEqual(JSON.stringify(yearListRows([], isCurrentYearRow)), '[]', 'empty list -> []');
+    assertEqual(JSON.stringify(yearListRows(null, isCurrentYearRow)), '[]', 'null -> []');
+    assertEqual(JSON.stringify(yearListRows(undefined, isCurrentYearRow)), '[]', 'undefined -> []');
   });
 
   // ---- Summary -----------------------------------------------------------

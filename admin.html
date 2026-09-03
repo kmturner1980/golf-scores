@@ -12,11 +12,20 @@
 </head>
 <body>
 <header class="app-header">
+  <button type="button" id="menuToggle" class="menu-toggle" aria-label="Menu" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
+    <span class="menu-toggle-bar"></span>
+    <span class="menu-toggle-bar"></span>
+    <span class="menu-toggle-bar"></span>
+  </button>
   <img class="brand-logo" src="assets/img/ambrose-golf-logo.png" alt="Ambrose Golf" onerror="this.remove()">
   <div>
     <h1>Coach Admin</h1>
     <p>Roster, rounds, and season stats</p>
   </div>
+  <nav id="menuPanel" class="menu-panel hidden" role="menu" aria-hidden="true" aria-labelledby="menuToggle">
+    <button type="button" id="menuDashboard" class="menu-item" role="menuitem">Dashboard</button>
+    <button type="button" id="menuYearMgmt" class="menu-item" role="menuitem">Year Management</button>
+  </nav>
 </header>
 <main>
   <div id="loginCard" class="card">
@@ -45,83 +54,138 @@
       </div>
     </div>
 
-    <details id="settingsSection" class="card settings">
-      <summary class="settings-summary">Settings</summary>
-
-      <div class="settings-body">
-        <!-- Make current: shown only when viewing season isn't current -->
-        <div class="field" style="margin-bottom:0.75rem">
-          <button type="button" id="setCurrentYearBtn" class="secondary">Make This the Current Season</button>
-        </div>
-
-        <!-- Create new season -->
-        <div class="field-row" style="align-items:end; margin-bottom:0.75rem">
-          <div class="field" style="margin-bottom:0">
-            <label for="newYearLabel">New Season Label</label>
-            <input type="text" id="newYearLabel" placeholder="e.g. 2027-2028" maxlength="100">
-          </div>
-          <div class="field" style="margin-bottom:0">
-            <button type="button" id="createYearBtn">Create New Season</button>
-          </div>
-        </div>
-
-        <!-- Import players from the current season -->
-        <div class="field" style="margin-bottom:0.75rem">
-          <label>Import players from the current season</label>
-          <p class="muted">Pick which players to carry onto the new season. Nothing is
-            selected by default, and you can create a season with no players.</p>
-          <div id="importPlayersList"></div>
-        </div>
-
-        <!-- Add existing player to viewing season -->
-        <h3>Add Existing Player to This Season</h3>
-        <p class="muted">For a returning player who isn't rostered for the season you're viewing (e.g. they were removed by mistake, or sat out a season).</p>
-        <div id="addExistingMessage"></div>
-        <div class="field-row" style="align-items:end">
-          <div class="field" style="margin-bottom:0">
-            <label for="addExistingSelect">Player</label>
-            <select id="addExistingSelect"></select>
-          </div>
-          <div class="field" style="margin-bottom:0">
-            <button type="button" id="addExistingBtn">Add to Season</button>
-          </div>
-        </div>
-      </div>
-    </details>
-
     <div class="card">
       <h2>Team Totals</h2>
       <div id="teamTiles"></div>
     </div>
 
     <div class="card">
-      <h2>Add Player</h2>
-      <div id="addPlayerMessage"></div>
-      <form id="addPlayerForm" class="field-row" style="align-items:end">
-        <div class="field" style="margin-bottom:0">
-          <label for="newPlayerName">Player Name</label>
-          <input type="text" id="newPlayerName" required>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <label for="newPlayerSex">Sex</label>
-          <select id="newPlayerSex" required>
-            <option value="Boy">Boy</option>
-            <option value="Girl">Girl</option>
-          </select>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <button type="submit">Add Player &amp; Generate Link</button>
-        </div>
-      </form>
-      <div id="newLinkBox" class="link-box hidden" style="margin-top:0.75rem">
-        <input type="text" id="newLinkInput" readonly>
-        <button type="button" id="copyLinkBtn" class="secondary">Copy</button>
-      </div>
-    </div>
-
-    <div class="card">
       <h2>Roster</h2>
       <div id="rosterTable" class="table-scroll"></div>
+    </div>
+
+    <div id="yearMgmt" class="card hidden">
+      <div class="field-row" style="align-items:center; margin-bottom:0.75rem">
+        <h2 id="yearMgmtHeading" style="margin-bottom:0">Year Management</h2>
+        <div style="text-align:right">
+          <button type="button" id="yearMgmtBack" class="secondary">&larr; Back</button>
+        </div>
+      </div>
+      <div id="yearMgmtMessage"></div>
+
+      <!-- Season list (rendered by JS: one row per season) -->
+      <div class="field" style="margin-bottom:0.75rem">
+        <button type="button" id="addYearBtn">Add New Year</button>
+      </div>
+      <div id="yearList"></div>
+
+      <!-- Edit-Year panel (targets editingYearId; hidden until a season is edited) -->
+      <div id="editYear" class="hidden" style="margin-top:1rem">
+        <div class="field-row" style="align-items:center; margin-bottom:0.75rem">
+          <h3 id="editYearHeading" style="margin-bottom:0">Edit Season</h3>
+          <div style="text-align:right">
+            <button type="button" id="editYearBack" class="secondary">&larr; Back to seasons</button>
+          </div>
+        </div>
+        <div id="editYearMessage"></div>
+
+        <!-- Make current: shown only when the edited season isn't current -->
+        <div class="field" style="margin-bottom:0.75rem">
+          <button type="button" id="editYearMakeCurrentBtn" class="secondary">Make This the Current Season</button>
+        </div>
+
+        <!-- Year roster (rendered by JS: each rostered player + Remove) -->
+        <h4 style="margin-bottom:0.5rem">Roster</h4>
+        <div id="editYearRoster"></div>
+
+        <!-- Add existing player to this season -->
+        <h4 style="margin-bottom:0.5rem">Add Existing Player to This Season</h4>
+        <p class="muted">For a returning player who isn't rostered for this season (e.g. they were removed by mistake, or sat out a season).</p>
+        <div id="editYearAddExistingMessage"></div>
+        <div class="field-row" style="align-items:end">
+          <div class="field" style="margin-bottom:0">
+            <label for="editYearAddExistingSelect">Player</label>
+            <select id="editYearAddExistingSelect"></select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <button type="button" id="editYearAddExistingBtn">Add to Season</button>
+          </div>
+        </div>
+
+        <!-- Add brand-new player to this season -->
+        <h4 style="margin-bottom:0.5rem">Add Brand-New Player</h4>
+        <div id="editYearAddPlayerMessage"></div>
+        <form id="editYearAddPlayerForm" class="field-row" style="align-items:end">
+          <div class="field" style="margin-bottom:0">
+            <label for="editYearNewPlayerName">Player Name</label>
+            <input type="text" id="editYearNewPlayerName" required>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="editYearNewPlayerSex">Sex</label>
+            <select id="editYearNewPlayerSex" required>
+              <option value="Boy">Boy</option>
+              <option value="Girl">Girl</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <button type="submit" id="editYearAddPlayerBtn">Add Player &amp; Generate Link</button>
+          </div>
+        </form>
+        <div id="editYearNewLinkBox" class="link-box hidden" style="margin-top:0.75rem">
+          <input type="text" id="editYearNewLinkInput" readonly>
+          <button type="button" id="editYearCopyLinkBtn" class="secondary">Copy</button>
+        </div>
+      </div>
+
+      <!-- Add-New-Year walkthrough (4 steps; hidden until Add New Year) -->
+      <div id="yearWalk" class="hidden" style="margin-top:1rem">
+        <div class="field-row" style="align-items:center; margin-bottom:0.5rem">
+          <h3 id="yearWalkHeading" style="margin-bottom:0">Add New Season</h3>
+          <div style="text-align:right">
+            <span id="walkProgress" class="muted"></span>
+          </div>
+        </div>
+        <div id="walkMessage"></div>
+
+        <!-- Step 1: Name -->
+        <div id="walkStep1" class="hidden">
+          <div class="field">
+            <label for="walkLabel">New Season Label</label>
+            <input type="text" id="walkLabel" placeholder="e.g. 2027-2028" maxlength="100">
+          </div>
+        </div>
+
+        <!-- Step 2: Returning players (skippable) -->
+        <div id="walkStep2" class="hidden">
+          <p class="muted">Pick which players to carry onto the new season. Nothing is
+            selected by default, and you can create a season with no players.</p>
+          <div id="walkReturningList"></div>
+        </div>
+
+        <!-- Step 3: New players (skippable) -->
+        <div id="walkStep3" class="hidden">
+          <p class="muted">Add brand-new players for this season. You can add as many as you
+            need, or skip this step.</p>
+          <div id="walkNewPlayers"></div>
+          <button type="button" id="walkAddPlayerRow" class="secondary" style="margin-top:0.5rem">Add Another Player</button>
+        </div>
+
+        <!-- Step 4: Review & Confirm -->
+        <div id="walkStep4" class="hidden">
+          <div id="walkReview"></div>
+        </div>
+
+        <!-- Stepper navigation -->
+        <div class="field-row" style="align-items:center; margin-top:1rem">
+          <div>
+            <button type="button" id="walkBackBtn" class="secondary">&larr; Back</button>
+          </div>
+          <div style="text-align:right">
+            <button type="button" id="walkNextBtn">Next &rarr;</button>
+            <button type="button" id="walkConfirmBtn" class="hidden">Confirm &amp; Create</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="playerDetail" class="card hidden">

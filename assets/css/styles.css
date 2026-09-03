@@ -43,6 +43,7 @@ header.app-header {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  position: relative;            /* anchor for the absolutely-positioned .menu-panel */
 }
 
 header.app-header .brand-logo {
@@ -61,6 +62,84 @@ header.app-header p {
   opacity: 0.85;
   font-size: 0.9rem;
 }
+
+/* ---------------------------------------------------------------------------
+ * Hamburger menu (header navigation)
+ *
+ * Replaces the old inline Settings disclosure. `#menuToggle` is an icon button
+ * living in `header.app-header` (navy bg, light text); its three
+ * `.menu-toggle-bar` spans draw the hamburger glyph in a light color so they
+ * read on the navy header. `#menuPanel` is an absolutely-positioned dropdown
+ * (anchored to the `position: relative` header) shown/hidden via the `.hidden`
+ * class the JS toggles. All colors reuse the :root brand vars.
+ * ------------------------------------------------------------------------- */
+
+/* Icon button: strip the global navy `button` chrome so it reads as an icon,
+   not a pill. Comfortable >=40px square tap target. */
+.menu-toggle {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-button);
+  padding: 0.4rem;
+  margin: 0;
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.menu-toggle:hover:not(:disabled) { background: var(--navy-hover); }
+
+/* Three light bars on the navy header. */
+.menu-toggle-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  border-radius: 2px;
+}
+
+/* Dropdown panel: overlays content just under the toggle, using the brand card
+   surface/border/radius plus a subtle shadow. Toggled via `.hidden`. */
+.menu-panel {
+  position: absolute;
+  top: 100%;
+  left: 1.25rem;
+  z-index: 1000;
+  min-width: 200px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(22, 35, 59, 0.18);
+  padding: 0.35rem;
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Menu rows: override the global uppercase navy `button` style so items read as
+   full-width left-aligned rows (white bg, navy text, brand hover). */
+.menu-item {
+  background: #fff;
+  color: var(--navy);
+  border: none;
+  border-radius: var(--radius-control);
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  min-height: 40px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+.menu-item:hover:not(:disabled) { background: var(--blue-gray); }
 
 main {
   max-width: 1200px;
@@ -318,6 +397,19 @@ th.clickable:hover { color: var(--navy); }
    a load the rule above hides everything (including #playerDetail/#editRoundCard)
    behind the overlay, then the JS re-applies the correct state afterward. */
 #dashboard.player-view-open > *:not(#playerDetail):not(#editRoundCard) { display: none !important; }
+
+/* Full-screen Year Management view: while the dashboard carries `year-mgmt-open`,
+   show ONLY #yearMgmt -- every other dashboard child (Season selector, Team
+   Totals, Roster, #playerDetail/#editRoundCard) is hidden. Mirrors the
+   `player-view-open` rule above. Composes cleanly with `dashboard-loading`:
+   during a load the loading rule hides EVERYTHING (including #yearMgmt) behind
+   the overlay, then the JS re-applies the correct state after refresh(). Only
+   one full-screen view is ever set at a time -- the JS enforces the single-open
+   invariant, so `player-view-open` and `year-mgmt-open` are never both present.
+   #yearMgmt also carries `.hidden` initially; the JS removes `.hidden` when
+   opening and adds `year-mgmt-open` to #dashboard (while closed it stays
+   `.hidden`; when open it is revealed and this rule makes it the sole child). */
+#dashboard.year-mgmt-open > *:not(#yearMgmt) { display: none !important; }
 
 .spinner-dark {
   border-color: rgba(27, 50, 94, 0.25);
@@ -723,4 +815,13 @@ th.clickable:hover { color: var(--navy); }
 
   /* Header: tighten padding so the logo + title/subtitle fit at phone width. */
   header.app-header { padding: 0.85rem 1rem; }
+
+  /* Menu panel: align its left edge with the tighter phone header padding and
+     let it stretch comfortably without overflowing a ~360px viewport. The
+     absolutely-positioned overlay approach is unchanged from desktop. */
+  .menu-panel {
+    left: 1rem;
+    right: 1rem;
+    min-width: 0;
+  }
 }

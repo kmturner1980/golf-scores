@@ -125,11 +125,137 @@
     ];
   }
 
+  // Trim + non-empty guard for a season label, mirroring createYear_'s
+  // server-side `(label || '').toString().trim()` + "required" check so the
+  // walkthrough gates the same way the backend validates. Returns true iff the
+  // label has at least one non-whitespace character; null/undefined/non-strings
+  // and whitespace-only strings are all invalid. No DOM, no storage. (Req 6.3)
+  function isValidYearLabel(label) {
+    if (label == null) return false;
+    return String(label).trim().length > 0;
+  }
+
+  // Step-completeness / navigation gating for the Add-Year walkthrough. Given
+  // the walkthrough model, report which steps are complete and whether Confirm
+  // is allowed. Steps 2 (returning players) and 3 (new players) are SKIPPABLE —
+  // an empty season with a valid label is allowed — so confirmation is gated
+  // ONLY by the label. `canConfirm === isValidYearLabel(walk.label)` regardless
+  // of returning selections or new-player rows. Treats a missing model as an
+  // empty (invalid-label) model. No DOM, no storage. (Reqs 6.3, 6.5, 6.7, 6.8)
+  //   walk: { label, returningTokens:[], newPlayers:[{name,sex}] }
+  //   -> { labelValid, step1Complete, canConfirm }
+  function walkStepValidation(walk) {
+    var model = walk || {};
+    var labelValid = isValidYearLabel(model.label);
+    return {
+      labelValid: labelValid,
+      step1Complete: labelValid,
+      canConfirm: labelValid
+    };
+  }
+
+  // Validate/normalize a single new-player row from walkthrough Step 3. A row is
+  // valid iff its name is non-empty after trimming AND its sex is exactly 'Boy'
+  // or 'Girl'. Returns the trimmed name and the normalized sex ('Boy'/'Girl' or
+  // null when neither). Blank/invalid rows report `valid: false` but never
+  // throw — callers drop them rather than error. No DOM, no storage. (Req 6.6)
+  //   row: { name, sex }
+  //   -> { valid: boolean, name: string /*trimmed*/, sex: 'Boy'|'Girl'|null }
+  function validateNewPlayerRow(row) {
+    var r = row || {};
+    var name = r.name == null ? '' : String(r.name).trim();
+    var sex = (r.sex === 'Boy' || r.sex === 'Girl') ? r.sex : null;
+    return {
+      valid: name.length > 0 && sex !== null,
+      name: name,
+      sex: sex
+    };
+  }
+
+  // Keep only the valid new-player rows to actually create, dropping blank/
+  // invalid rows (empty name after trim, or a sex that is not Boy/Girl) and
+  // preserving the relative order of the surviving rows. Each returned row
+  // carries the trimmed name and normalized Boy/Girl sex. A missing/non-array
+  // input yields an empty array. No DOM, no storage. (Req 6.10)
+  //   rows: [{ name, sex }]  ->  [{ name, sex }] (valid only, order preserved)
+  function collectNewPlayers(rows) {
+    var list = Array.isArray(rows) ? rows : [];
+    var out = [];
+    list.forEach(function (row) {
+      var v = validateNewPlayerRow(row);
+      if (v.valid) out.push({ name: v.name, sex: v.sex });
+    });
+    return out;
+  }
+
+  // Assemble the Step-4 Review & Confirm summary purely from the walkthrough
+  // model plus the global player list. The label is trimmed; the returning list
+  // corresponds exactly to `walk.returningTokens`, with each token's display
+  // Name resolved from `players` (unknown tokens resolve to an empty name but
+  // are still included, preserving token order); newPlayers is exactly
+  // `collectNewPlayers(walk.newPlayers)`. No DOM, no storage. (Req 6.9)
+  //   walk:    { label, returningTokens:[], newPlayers:[{name,sex}] }
+  //   players: array of { Token, Name }
+  //   -> { label, returning:[{token,name}], newPlayers:[{name,sex}] }
+  function buildConfirmSummary(walk, players) {
+    var model = walk || {};
+    var list = Array.isArray(players) ? players : [];
+    var byToken = {};
+    list.forEach(function (p) {
+      if (p && p.Token != null) byToken[p.Token] = p.Name;
+    });
+    var tokens = Array.isArray(model.returningTokens) ? model.returningTokens : [];
+    var returning = tokens.map(function (token) {
+      var name = byToken[token];
+      return { token: token, name: name == null ? '' : name };
+    });
+    return {
+      label: model.label == null ? '' : String(model.label).trim(),
+      returning: returning,
+      newPlayers: collectNewPlayers(model.newPlayers)
+    };
+  }
+
+  // Order/annotate the season list for the Year Management view. Returns exactly
+  // one row per input season (every YearID present once), ordered newest-first
+  // by CreatedAt to mirror populateYearSelect's sort. Each row carries its
+  // YearID, Label, whether it is the current season (via the supplied `isCurrent`
+  // predicate, defaulting to isCurrentYearRow), and `canMakeCurrent === !isCurrent`
+  // (Make-current is offered for exactly the non-current seasons). A missing/
+  // non-array input yields an empty array. No DOM, no storage.
+  //   years:     array of { YearID, Label, CreatedAt, IsCurrent }
+  //   isCurrent: predicate (y) => boolean (reuses isCurrentYearRow)
+  //   -> [{ yearId, label, isCurrent, canMakeCurrent }]  (newest-first)
+  function yearListRows(years, isCurrent) {
+    var list = Array.isArray(years) ? years : [];
+    var predicate = typeof isCurrent === 'function' ? isCurrent : isCurrentYearRow;
+    return list
+      .slice()
+      .sort(function (a, b) {
+        return new Date(b.CreatedAt) - new Date(a.CreatedAt);        // Reqs 4.1, 4.2
+      })
+      .map(function (y) {
+        var current = !!predicate(y);
+        return {
+          yearId: y.YearID,
+          label: y.Label,
+          isCurrent: current,                                        // Reqs 4.2, 4.5
+          canMakeCurrent: !current                                   // Reqs 4.4, 5.3
+        };
+      });
+  }
+
   return {
     isCurrentYearRow: isCurrentYearRow,
     resolveViewingYearId: resolveViewingYearId,
     existingPlayerCandidates: existingPlayerCandidates,
     importCandidatesFrom: importCandidatesFrom,
-    roundCardFields: roundCardFields
+    roundCardFields: roundCardFields,
+    isValidYearLabel: isValidYearLabel,
+    walkStepValidation: walkStepValidation,
+    validateNewPlayerRow: validateNewPlayerRow,
+    collectNewPlayers: collectNewPlayers,
+    buildConfirmSummary: buildConfirmSummary,
+    yearListRows: yearListRows
   };
 });

@@ -1,0 +1,455 @@
+{
+  "pbtResults": {
+    "1.2 Write property test for label validity": {
+      "status": "passed",
+      "lastRunTimestamp": 1788402014500
+    },
+    "1.3 Write property test for confirm gating / skippable steps": {
+      "status": "passed",
+      "lastRunTimestamp": 1788402015445
+    },
+    "1.4 Write property test for new-player collection": {
+      "status": "passed",
+      "lastRunTimestamp": 1788402016839
+    },
+    "1.5 Write property test for confirm summary": {
+      "status": "passed",
+      "lastRunTimestamp": 1788402017793
+    },
+    "1.6 Write property tests for the season-list view model": {
+      "status": "passed",
+      "lastRunTimestamp": 1788402018897
+    }
+  },
+  "executionHistory": {
+    "1.1 Add `isValidYearLabel`, `walkStepValidation`, `validateNewPlayerRow`, `collectNewPlayers`, `buildConfirmSummary`, and `yearListRows` to `assets/js/admin-logic.js`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731613
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401743006
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401857846
+      }
+    ],
+    "2. Checkpoint - Ensure all AdminLogic tests pass": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731647
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402058122
+      }
+    ],
+    "3.1 Add hamburger button + menu panel markup to `header.app-header` in `admin.html`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731679
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401867445
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402044749
+      }
+    ],
+    "3.2 Add the `#yearMgmt` full-screen view container to `#dashboard` in `admin.html`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731727
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401868849
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402046171
+      }
+    ],
+    "3.3 Add CSS view-state and menu styles to `assets/css/styles.css`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731759
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401869887
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402194335
+      }
+    ],
+    "4.1 Add menu open/close/keyboard/outside-click behavior in `assets/js/admin.js`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731799
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402202433
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402322881
+      }
+    ],
+    "5.1 Add `yearMgmtOpen` guard and `openYearMgmt`/`closeYearMgmt(fromPopstate)` in `assets/js/admin.js`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731844
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402324158
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402511310
+      }
+    ],
+    "5.2 Render the season list from `AdminLogic.yearListRows(data.years, isCurrentYearRow)`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731876
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402512592
+      }
+    ],
+    "6.1 Add `editingYearId` state and `openEditYear(yearId)`/`closeEditYear()` in `assets/js/admin.js`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731910
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402519191
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402703280
+      }
+    ],
+    "6.2 Render the edited season's roster with per-player removal": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731944
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402520658
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402704327
+      }
+    ],
+    "6.3 Wire Add-Existing-Player scoped to editingYearId": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401731976
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402522077
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402705593
+      }
+    ],
+    "6.4 Wire Add-brand-new-player scoped to editingYearId": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732010
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402522902
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402706601
+      }
+    ],
+    "7. Checkpoint - Ensure view-state and edit-year compose correctly": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732042
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402719141
+      }
+    ],
+    "8.1 Add the walkthrough model + step navigation in `assets/js/admin.js`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732077
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402720396
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402981600
+      }
+    ],
+    "8.2 Render Step 2 (returning) and Step 3 (new players), both skippable": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732110
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402721843
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402978794
+      }
+    ],
+    "8.3 Render Step 4 review from `AdminLogic.buildConfirmSummary(walk, data.players)`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732143
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402723240
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402980200
+      }
+    ],
+    "8.4 Implement `walkConfirm()` best-effort creation sequence": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732196
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402724140
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402982557
+      }
+    ],
+    "9.1 Remove the `#settingsSection` `<details>` and the standalone Add Player card from `admin.html`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732227
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402989508
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788403245676
+      }
+    ],
+    "9.2 Re-home the relocated controllers in `assets/js/admin.js` and clean up `refresh()`": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732260
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402997279
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788403247077
+      }
+    ],
+    "11. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401732293
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788403280453
+      }
+    ],
+    "1. Extract pure walkthrough/year-list logic into AdminLogic": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401857897
+      }
+    ],
+    "1.2 Write property test for label validity": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401866065
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402047532
+      }
+    ],
+    "1.3 Write property test for confirm gating / skippable steps": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401875637
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402048487
+      }
+    ],
+    "1.4 Write property test for new-player collection": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401876585
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402049941
+      }
+    ],
+    "1.5 Write property test for confirm summary": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401877988
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402050872
+      }
+    ],
+    "1.6 Write property tests for the season-list view model": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788401879182
+      },
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402051852
+      }
+    ],
+    "3. Add markup and CSS for the new views and menu": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402194420
+      }
+    ],
+    "4. Wire the hamburger menu controller": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402322945
+      }
+    ],
+    "5. Wire the Year Management full-screen view-state (mirror the player view)": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402512629
+      }
+    ],
+    "6. Wire the Edit-Year panel (targets editingYearId)": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402706675
+      }
+    ],
+    "8. Implement the Add New Year walkthrough": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788402982597
+      }
+    ],
+    "9. Relocate existing controls and trim the Main dashboard": [
+      {
+        "executionId": "3e05dfd2-116c-4dd0-a6c8-7b2770f6f790",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788403247117
+      }
+    ]
+  }
+}
