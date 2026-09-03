@@ -1,0 +1,185 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add `data-label` attributes and hole-num class in `holeTable.js` `render()`": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400082847
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400093193
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400170910
+      }
+    ],
+    "2.1 Add the single-column `.field-row` rule inside the 640px breakpoint": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400082881
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400178943
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400399198
+      }
+    ],
+    "3.1 Add the `.hole-table` reflow rules inside the 640px breakpoint": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400082919
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400180361
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400397788
+      }
+    ],
+    "4. Checkpoint - hole table + forms reflow": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400082962
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400440563
+      }
+    ],
+    "5.1 Confirm grid reflow at 390px; conditionally reduce summary-grid min": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400082995
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400418957
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400438483
+      }
+    ],
+    "6.1 Add audit-fix CSS inside the 640px breakpoint": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400083030
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400181213
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400399946
+      }
+    ],
+    "7.1 Confirm Recent Rounds remains readable via its scroll container": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400083060
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400420134
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400439448
+      }
+    ],
+    "8.1 Run existing Node test suites": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400083087
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400418033
+      },
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400437104
+      }
+    ],
+    "8.2 Perform the documented manual verification at ~390px and ~768px on both pages": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400083122
+      }
+    ],
+    "1. Add `data-label` markup to the shared hole-table renderer": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400170943
+      }
+    ],
+    "3. Reflow the hole-by-hole table into stacked cards on mobile": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400397833
+      }
+    ],
+    "2. Collapse paired form fields on mobile": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400399255
+      }
+    ],
+    "6. Fix button clusters, link boxes, and header spacing on mobile": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400399976
+      }
+    ],
+    "5. Verify and, if needed, adjust summary/stat grids": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400438513
+      }
+    ],
+    "7. Document and verify the public Recent Rounds decision": [
+      {
+        "executionId": "96f81abd-5b33-4e8e-8cdd-06a584ca9eb6",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788400439509
+      }
+    ]
+  }
+}

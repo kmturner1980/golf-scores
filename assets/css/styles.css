@@ -585,4 +585,142 @@ th.clickable:hover { color: var(--navy); }
   #playerDetailRounds > table,
   #playerDetailRounds .rounds-table { display: none; }
   #playerDetailRounds .round-cards { display: block; }
+
+  /* -------------------------------------------------------------------------
+   * TASK 2.1 (Req 1.1-1.3): Collapse paired form fields to a single column.
+   * The desktop `.field-row` rule (1fr 1fr, outside this media query) is
+   * untouched, so > 640px keeps two columns. This is an intended global change
+   * affecting every `.field-row` on both admin.html and player.html (date/holes,
+   * course/tees, tee/rating/slope, admin create-season / add-existing /
+   * add-player rows, and the player-detail heading rows).
+   * ------------------------------------------------------------------------- */
+  .field-row { grid-template-columns: 1fr; }
+
+  /* -------------------------------------------------------------------------
+   * TASK 3.1 (Req 2.1-2.8, 3.5): Reflow the hole-by-hole table into stacked
+   * per-hole cards, CSS-only. EVERY selector below is rooted at `.hole-table`
+   * (or the `#holeByHoleSection` / `#editHoleByHoleSection` wrappers) so the
+   * reflow does NOT touch the roster table, the player-detail Rounds table/cards,
+   * the public Recent Rounds table, or Team Totals. The generic
+   * `table`/`th`/`td`/`tr`/`.table-scroll` rules are NOT changed globally.
+   *
+   * `holeTable.js` renders each <td> with a data-label ("Hole"/"Par"/"Score"/
+   * "Fairway"/"GIR"/"Putts"/"Penalty") and the hole-number <td> as .hole-num;
+   * with <thead> hidden, the label is surfaced via `::before { content:
+   * attr(data-label); }`.
+   * ------------------------------------------------------------------------- */
+
+  /* Neutralize the horizontal-scroll wrapper ONLY around the hole tables so no
+     scrollbar reappears once the table reflows to full-width blocks. Scoped to
+     the hole sections on player.html (#holeByHoleSection) and admin.html
+     (#editHoleByHoleSection); the generic `.table-scroll` rule is left intact. */
+  #holeByHoleSection .table-scroll,
+  #editHoleByHoleSection .table-scroll { overflow-x: visible; }
+
+  /* Hide the header row; labels come from data-label instead. */
+  .hole-table thead { display: none; }
+
+  /* Make the table and its parts block-level so rows stack as cards. */
+  .hole-table,
+  .hole-table tbody,
+  .hole-table tr,
+  .hole-table td { display: block; width: 100%; }
+
+  /* Each <tr> becomes a bordered card using the brand system. */
+  .hole-table tr {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+
+  /* Each <td> becomes a labeled line: label left (::before), value right.
+     `white-space: normal` overrides the global `th, td { white-space: nowrap }`
+     so long values wrap inside the card. Remove the default cell bottom-border
+     inherited from the generic td rule to keep the card tidy. */
+  .hole-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border-bottom: none;
+    white-space: normal;
+  }
+  .hole-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.7rem;
+  }
+
+  /* The hole-number cell is the card's title (reads "Hole 1"): show a "Hole"
+     label via ::before and keep the number as the value, rendered larger in the
+     brand navy with a bottom border separating it from the field lines. */
+  .hole-table td.hole-num {
+    justify-content: flex-start;
+    gap: 0.4rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--navy);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.25rem;
+  }
+  .hole-table td.hole-num::before {
+    content: "Hole";
+    font-size: 1.05rem;
+    color: var(--navy);
+    letter-spacing: 0.02em;
+  }
+
+  /* Comfortable tap targets (>= 40px tall). min-height is not blocked by the
+     low-specificity inline style="width:4.5em", so it applies without
+     !important. Widen number inputs with !important to beat the inline width
+     so values are comfortably readable/tappable. The .fairway select keeps its
+     inline display:none when disabled on Par-3 (not overridden here), so the
+     hidden select stays hidden and the .fairway-na "—" span sits as the value. */
+  .hole-table input.par,
+  .hole-table input.score,
+  .hole-table input.putts,
+  .hole-table input.penalty {
+    width: 5.5em !important;
+    min-height: 40px;
+  }
+  .hole-table select { min-height: 40px; }
+
+  /* -------------------------------------------------------------------------
+   * TASK 6.1 (Req 5.1-5.4): Phone spacing / tap-target audit fixes, CSS-only.
+   * All rules stay scoped so nothing above the 640px breakpoint changes and the
+   * already-shipped roster cards / player-detail rounds cards are undisturbed.
+   * ------------------------------------------------------------------------- */
+
+  /* Player-detail right-aligned button clusters (Remove-from-Season /
+     Delete-Player pair, and the Add Round wrapper) sit in inline
+     `text-align:right` <div>s inside a now-stacked `.field-row`. Left-align them
+     and let their buttons go full-width so they don't crowd/overflow at ~390px. */
+  #playerDetail .field-row > div[style*="text-align:right"] { text-align: left; }
+  #playerDetail .field-row > div[style*="text-align:right"] button {
+    width: 100%;
+    margin-top: 0.4rem;
+    min-height: 40px;
+  }
+
+  /* The sex controls (#editSexBtn / #saveSexBtn / #cancelSexBtn) and other
+     button groups mostly live in flex containers that already wrap; make sure
+     they can wrap and keep a comfortable tap height. */
+  #playerDetail .link-box { flex-wrap: wrap; }
+
+  /* `.link-box input { min-width: 200px }` overflows a ~360px content width
+     next to the Copy button. Let it shrink (flex:1 still lets it grow) so the
+     row fits, and keep the Copy button tappable. */
+  .link-box input { min-width: 0; }
+  .link-box button { min-height: 40px; }
+
+  /* Header: tighten padding so the logo + title/subtitle fit at phone width. */
+  header.app-header { padding: 0.85rem 1rem; }
 }

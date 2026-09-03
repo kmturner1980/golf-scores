@@ -21,24 +21,24 @@ const HoleTable = {
       const girVal = ex ? ex.gir : 'N';
       return `
       <tr data-hole="${h}">
-        <td>${h}</td>
-        <td><input type="number" class="par" min="3" max="6" value="${par}" ${locked ? 'disabled' : ''} style="width:4.5em"></td>
-        <td><input type="number" class="score" min="1" max="20" value="${ex && ex.score != null ? ex.score : ''}" required style="width:4.5em"></td>
-        <td>
+        <td class="hole-num" data-label="Hole">${h}</td>
+        <td data-label="Par"><input type="number" class="par" min="3" max="6" value="${par}" ${locked ? 'disabled' : ''} style="width:4.5em"></td>
+        <td data-label="Score"><input type="number" class="score" min="1" max="20" value="${ex && ex.score != null ? ex.score : ''}" required style="width:4.5em"></td>
+        <td data-label="Fairway">
           <select class="fairway" ${isPar3 ? 'disabled style="display:none"' : ''}>
             <option value="Y" ${fairwayVal === 'Y' ? 'selected' : ''}>Hit</option>
             <option value="N" ${fairwayVal !== 'Y' ? 'selected' : ''}>Miss</option>
           </select>
           <span class="fairway-na muted" style="${isPar3 ? '' : 'display:none'}">—</span>
         </td>
-        <td>
+        <td data-label="GIR">
           <select class="gir">
             <option value="Y" ${girVal === 'Y' ? 'selected' : ''}>Yes</option>
             <option value="N" ${girVal !== 'Y' ? 'selected' : ''}>No</option>
           </select>
         </td>
-        <td><input type="number" class="putts" min="0" max="10" value="${ex && ex.putts != null ? ex.putts : ''}" style="width:4.5em"></td>
-        <td><input type="number" class="penalty" min="0" max="10" value="${ex && ex.penalty != null ? ex.penalty : 0}" style="width:4.5em"></td>
+        <td data-label="Putts"><input type="number" class="putts" min="0" max="10" value="${ex && ex.putts != null ? ex.putts : ''}" style="width:4.5em"></td>
+        <td data-label="Penalty"><input type="number" class="penalty" min="0" max="10" value="${ex && ex.penalty != null ? ex.penalty : 0}" style="width:4.5em"></td>
       </tr>`;
     }).join('');
     this.attachParListeners(tbody);
