@@ -2,7 +2,7 @@
   // Pure logic helpers live in assets/js/admin-logic.js (loaded before this
   // file) so they can be unit- and property-tested with no DOM. Destructure
   // them here for use by the season-selection wiring below.
-  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom } = window.AdminLogic;
+  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields } = window.AdminLogic;
 
   const els = {
     loginCard: document.getElementById('loginCard'),
@@ -32,6 +32,8 @@
     importPlayersList: document.getElementById('importPlayersList'),
     rosterTable: document.getElementById('rosterTable'),
     playerDetail: document.getElementById('playerDetail'),
+    backToRosterTop: document.getElementById('backToRosterTop'),
+    backToRosterBottom: document.getElementById('backToRosterBottom'),
     playerDetailName: document.getElementById('playerDetailName'),
     playerDetailLink: document.getElementById('playerDetailLink'),
     copyDetailLinkBtn: document.getElementById('copyDetailLinkBtn'),
@@ -96,6 +98,8 @@
   ];
 
   let currentPlayerToken = null;
+  let rosterScrollY = 0;              // window scrollY captured when the player view opens
+  let playerViewOpen = false;         // whether the full-screen player view is showing
   let editingRoundId = null;
   let sortKey = 'avg';
   let sortDir = 'asc';
@@ -568,30 +572,82 @@
     if (!rounds.length) {
       els.playerDetailRounds.innerHTML = '<p class="muted">No rounds entered yet.</p>';
     } else {
-      els.playerDetailRounds.innerHTML = `<table>
+      // Compute each round's display values once, then render them into BOTH the
+      // desktop table (unchanged) and a mobile `.round-cards` block. The CSS in
+      // styles.css (scoped to #playerDetailRounds) hides the table and shows the
+      // cards at/below the 640px breakpoint, and the inverse above it, so only one
+      // layout is visible at a time (Reqs 5.1, 5.2, 9.1).
+      const roundViews = rounds.map((r) => {
+        const holes = holesByRound[r.RoundID] || [];
+        const { score } = Stats.roundScoreAndPar(r, holes);
+        const putts = Stats.roundPutts(r, holes);
+        const diff = Stats.scoreDifferential(r, holes);
+        const badges = [
+          Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
+          Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
+        ].filter(Boolean).join(' ');
+        // RAW values passed to the pure (non-escaping) mapper; every value is
+        // escaped at render time below, exactly like the table cells (design →
+        // Security Considerations). Score/Putts may be null → mapper yields '—'.
+        return {
+          r: r,
+          badges: badges,
+          date: formatDate(r.Date),
+          fields: roundCardFields({
+            date: formatDate(r.Date),
+            course: r.Course,
+            tees: r.Tees,
+            holesPlayed: r.HolesPlayed,
+            score: score,
+            diff: Stats.fmtDiff(diff),
+            putts: putts
+          }),
+          score: score,
+          diff: diff,
+          putts: putts
+        };
+      });
+
+      const tableHtml = `<table>
         <thead><tr><th>Date</th><th>Course</th><th>Tees</th><th>Holes</th><th>Score</th><th>Diff</th><th>Putts</th><th colspan="2"></th></tr></thead>
-        <tbody>${rounds.map((r) => {
-          const holes = holesByRound[r.RoundID] || [];
-          const { score } = Stats.roundScoreAndPar(r, holes);
-          const putts = Stats.roundPutts(r, holes);
-          const diff = Stats.scoreDifferential(r, holes);
-          const badges = [
-            Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
-            Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
-          ].filter(Boolean).join(' ');
+        <tbody>${roundViews.map((v) => {
+          const r = v.r;
           return `<tr>
-            <td>${formatDate(r.Date)} ${badges}</td>
+            <td>${v.date} ${v.badges}</td>
             <td>${escapeHtml(r.Course)}</td>
             <td>${escapeHtml(r.Tees)}</td>
             <td>${r.HolesPlayed}</td>
-            <td>${score == null ? '—' : score}</td>
-            <td>${Stats.fmtDiff(diff)}</td>
-            <td>${putts == null ? '—' : putts}</td>
+            <td>${v.score == null ? '—' : v.score}</td>
+            <td>${Stats.fmtDiff(v.diff)}</td>
+            <td>${v.putts == null ? '—' : v.putts}</td>
             <td><button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button></td>
             <td><button type="button" class="danger delete-round" data-round="${escapeHtml(r.RoundID)}">Delete</button></td>
           </tr>`;
         }).join('')}</tbody>
       </table>`;
+
+      const cardsHtml = `<div class="round-cards">${roundViews.map((v) => {
+        const r = v.r;
+        // Date is shown once in the card head (plain date + trusted badge pills);
+        // the mapper's Date row is skipped below to avoid duplicating it.
+        const rows = v.fields
+          .filter((f) => f.label !== 'Date')
+          .map((f) => `<div class="round-card-row"><span class="round-card-label">${escapeHtml(f.label)}</span><span class="round-card-value">${escapeHtml(f.value)}</span></div>`)
+          .join('');
+        return `<div class="round-card">
+          <div class="round-card-head">${v.date} ${v.badges}</div>
+          ${rows}
+          <div class="round-card-actions">
+            <button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button>
+            <button type="button" class="danger delete-round" data-round="${escapeHtml(r.RoundID)}">Delete</button>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+
+      els.playerDetailRounds.innerHTML = tableHtml + cardsHtml;
+      // querySelectorAll matches BOTH the table and card buttons (shared classes),
+      // so each round's Edit/Delete works in whichever layout is visible. Each
+      // button gets exactly one listener (no double-binding).
       els.playerDetailRounds.querySelectorAll('.delete-round').forEach((btn) => {
         btn.addEventListener('click', () => deleteRound(btn.dataset.round, btn));
       });
@@ -602,7 +658,47 @@
 
     els.playerDetail.classList.remove('hidden');
     els.editRoundCard.classList.add('hidden');
-    els.playerDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    enterPlayerView();
+  }
+
+  // Enter the full-screen player-view visual + history state. Idempotent: if the
+  // view is already open, it returns without pushing another history entry so
+  // re-showing the detail after a mutation adds no duplicate Back entry.
+  function enterPlayerView() {
+    if (playerViewOpen) return;
+    rosterScrollY = window.scrollY;                 // capture exact roster position
+    els.dashboard.classList.add('player-view-open');
+    playerViewOpen = true;
+    window.scrollTo(0, 0);                           // player view opens at the top
+    history.pushState({ adminPlayerView: true }, '', location.href);
+  }
+
+  // Close the player view and return to the roster at the captured scroll position.
+  // `fromPopstate` is true when invoked by the popstate handler, in which case we
+  // must NOT call history.back() again. The playerViewOpen guard makes the on-page
+  // Back link's history.back() -> popstate a no-op, so close runs exactly once.
+  function closePlayerDetail(fromPopstate) {
+    if (!playerViewOpen) return;                     // guards double-trigger
+    els.dashboard.classList.remove('player-view-open');
+    els.editRoundCard.classList.add('hidden');       // ensure edit card never lingers
+    playerViewOpen = false;
+    if (!fromPopstate) {
+      // On-page Back link: pop our pushed entry. The resulting popstate is ignored
+      // because playerViewOpen is already false.
+      history.back();
+    }
+    // Restore roster scroll AFTER the cards are visible again so the target offset
+    // exists in the layout.
+    window.scrollTo(0, rosterScrollY);
+  }
+
+  // Browser/gesture Back handler. Only closes when the player view is open; the
+  // playerViewOpen guard means our own consumed entry (from an on-page Back link's
+  // history.back()) and normal roster navigation are left untouched.
+  function onPopState(event) {
+    if (playerViewOpen) {
+      closePlayerDetail(true);   // fromPopstate = true: do NOT call history.back() again
+    }
   }
 
   async function deleteRound(roundId, btn) {
@@ -739,8 +835,9 @@
     // inputs the render just (re)created.
     syncEditEntryModeVisibility();
 
+    els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.remove('hidden');
-    els.editRoundCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo(0, 0);
   }
 
   function openAddRound() {
@@ -774,8 +871,9 @@
     // inputs the render just (re)created.
     syncEditEntryModeVisibility();
 
+    els.playerDetail.classList.add('hidden');
     els.editRoundCard.classList.remove('hidden');
-    els.editRoundCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo(0, 0);
   }
 
   function editedCourseName() {
@@ -797,6 +895,10 @@
         Api.post({ action: 'deletePlayer', session, token: currentPlayerToken }));
       currentPlayerToken = null;
       await refresh();
+      // Player no longer exists -> return to the Roster_View. Called after
+      // refresh() so the roster is rebuilt before scroll is restored, and
+      // closePlayerDetail(false) consumes the pushed history entry. (Reqs 8.5)
+      closePlayerDetail(false);
     } catch (err) {
       alert(err.message);
     }
@@ -820,10 +922,12 @@
     // seconds), so show a loading state instead of a frozen-looking blank
     // dashboard. Everything below goes through refresh() -> loadData().
     els.loadingOverlay.classList.remove('hidden');
+    els.dashboard.classList.add('dashboard-loading');
     try {
       await refresh();
     } finally {
       els.loadingOverlay.classList.add('hidden');
+      els.dashboard.classList.remove('dashboard-loading');
     }
   }
 
@@ -879,6 +983,10 @@
         Api.post({ action: 'removePlayerFromYear', session, token: currentPlayerToken, yearId: selectedYearId }));
       currentPlayerToken = null;
       await refresh();
+      // Player is gone from this season -> return to the Roster_View. Called
+      // after refresh() so the roster is rebuilt before scroll is restored,
+      // and closePlayerDetail(false) consumes the pushed history entry. (Reqs 8.4)
+      closePlayerDetail(false);
     } catch (err) {
       alert(err.message);
     }
@@ -930,6 +1038,12 @@
   });
 
   els.deletePlayerBtn.addEventListener('click', deletePlayer);
+
+  // On-page "Back to roster" links (top and bottom of the player view). Both
+  // invoke the close path with fromPopstate=false so history.back() consumes
+  // the pushed player-view entry and the roster scroll position is restored.
+  els.backToRosterTop.addEventListener('click', () => closePlayerDetail(false));
+  els.backToRosterBottom.addEventListener('click', () => closePlayerDetail(false));
 
   els.editSexBtn.addEventListener('click', () => {
     const player = data.players.find((p) => p.Token === currentPlayerToken);
@@ -987,6 +1101,10 @@
   els.editCancelBtn.addEventListener('click', () => {
     editingRoundId = null;
     els.editRoundCard.classList.add('hidden');
+    // Re-show the player detail so cancelling the editor doesn't leave an
+    // empty full-screen player-view. showPlayerDetail is idempotent w.r.t.
+    // history (enterPlayerView adds no entry when already open).
+    if (currentPlayerToken) showPlayerDetail(currentPlayerToken);
   });
 
   els.addRoundBtn.addEventListener('click', openAddRound);
@@ -1063,6 +1181,8 @@
   }
   els.copyLinkBtn.addEventListener('click', () => copyToClipboard(els.newLinkInput));
   els.copyDetailLinkBtn.addEventListener('click', () => copyToClipboard(els.playerDetailLink));
+
+  window.addEventListener('popstate', onPopState);
 
   // Try to resume an existing session.
   (async function init() {

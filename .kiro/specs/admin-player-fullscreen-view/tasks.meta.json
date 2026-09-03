@@ -1,0 +1,244 @@
+{
+  "pbtResults": {
+    "3.3 Unit-test the round-fields mapper": {
+      "status": "passed",
+      "lastRunTimestamp": 1788393289185
+    }
+  },
+  "executionHistory": {
+    "1. Add full-screen player-view and responsive-rounds styles": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392926846
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392937408
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393178822
+      }
+    ],
+    "2.1 Add module state and open/close functions": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392926900
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393190258
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393312928
+      }
+    ],
+    "2.2 Wire the popstate handler": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392926963
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393320067
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393400200
+      }
+    ],
+    "3.1 Extract the pure round-fields mapper": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927009
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392938374
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393179690
+      }
+    ],
+    "3.2 Render round cards alongside the table": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927046
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393404736
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393521279
+      }
+    ],
+    "4. Checkpoint - verify view and rounds render": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927096
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393534640
+      }
+    ],
+    "5.1 Make the editor a full-screen sub-view": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927131
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393539830
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393626436
+      }
+    ],
+    "5.2 Return to player view on editor success": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927167
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393644512
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393742044
+      }
+    ],
+    "6.1 Player-preserving mutations return to the player view": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927212
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393645766
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393743411
+      }
+    ],
+    "6.2 Player-removing mutations return to the roster": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927251
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393646701
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393744448
+      }
+    ],
+    "7. Add on-page Back links in admin.html": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927293
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393749186
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393836753
+      }
+    ],
+    "8. Final checkpoint - full manual verification": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788392927331
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393851386
+      }
+    ],
+    "3.3 Unit-test the round-fields mapper": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393191195
+      },
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393311841
+      }
+    ],
+    "2. Implement the navigation controller in admin.js": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393400247
+      }
+    ],
+    "3. Implement responsive rounds rendering": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393521315
+      }
+    ],
+    "5. Wire the round editor into the full-screen view": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393742149
+      }
+    ],
+    "6. Wire post-mutation transitions": [
+      {
+        "executionId": "d0d24474-4c70-4d43-bbc7-ec361e6de0fc",
+        "chatSessionId": "sess_56e69e34-af94-4d59-af6e-ea330affc23c",
+        "timestamp": 1788393744495
+      }
+    ]
+  }
+}

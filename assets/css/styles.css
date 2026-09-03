@@ -307,6 +307,18 @@ th.clickable:hover { color: var(--navy); }
   font-size: 0.95rem;
 }
 
+/* While season data is loading, show only the loading overlay -- hide every
+   other dashboard card so the user never sees empty/partial UI mid-load. */
+#dashboard.dashboard-loading > *:not(.loading-overlay) { display: none !important; }
+
+/* Full-screen player view: while the dashboard carries `player-view-open`, show
+   ONLY the player detail card (or, when editing/adding a round, the round
+   editor) -- every other dashboard child (Season, Settings, Team Totals, Add
+   Player, Roster) is hidden. Composes cleanly with `dashboard-loading`: during
+   a load the rule above hides everything (including #playerDetail/#editRoundCard)
+   behind the overlay, then the JS re-applies the correct state afterward. */
+#dashboard.player-view-open > *:not(#playerDetail):not(#editRoundCard) { display: none !important; }
+
 .spinner-dark {
   border-color: rgba(27, 50, 94, 0.25);
   border-top-color: var(--navy, #1b325e);
@@ -448,6 +460,110 @@ th.clickable:hover { color: var(--navy); }
 .roster-card-detail { margin-top: 0.7rem; width: 100%; }
 
 /* ---------------------------------------------------------------------------
+ * Full-screen player view + responsive Rounds cards
+ *
+ * When #dashboard.player-view-open is set, #playerDetail is the sole visible
+ * card (see the view-state rule above). These rules keep that view feeling like
+ * the rest of the app by reusing the brand :root variables and the .card system,
+ * and give the player-detail Rounds list a mobile-friendly stacked-card layout.
+ *
+ * ROUND-CARD CLASS CONTRACT (Task 3.2 must emit markup matching these names,
+ * rendered inside #playerDetailRounds):
+ *   #playerDetailRounds            container (already `class="table-scroll"`)
+ *     table                        desktop layout (existing) -- visible > 640px,
+ *                                  hidden <= 640px. (A `.rounds-table` wrapper is
+ *                                  also supported by the selectors below.)
+ *     .round-cards                 wrapper for the mobile cards -- hidden by
+ *                                  default (desktop), shown <= 640px
+ *       .round-card                one per round (reuses .card visual system)
+ *         .round-card-head         date + tournament/summary badges
+ *         .round-card-row          label/value line (repeated per field)
+ *           .round-card-label      field label (Date, Course, Tees, ...)
+ *           .round-card-value      field value ('—' for null Score/Putts)
+ *         .round-card-actions      holds the .edit-round / .delete-round buttons
+ *
+ * All selectors are rooted at #playerDetailRounds (or the round-specific
+ * .round-card* / .round-cards classes) so NO other .table-scroll table
+ * (roster, public Recent Rounds, Team Totals) is affected (Req 5.5).
+ * ------------------------------------------------------------------------- */
+
+/* Give the full-screen player view a little breathing room from the header and
+   let its content span the full available width without horizontal overflow. */
+#dashboard.player-view-open > #playerDetail,
+#dashboard.player-view-open > #editRoundCard {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Mobile round cards are hidden on desktop; the existing table is shown. */
+.round-cards { display: none; }
+
+/* Card shell: reuses the .card visual system (white surface, brand border,
+   brand radius). Full-width with no fixed sizing, so it never overflows even
+   at ~390px. */
+.round-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.6rem;
+}
+.round-card:last-child { margin-bottom: 0; }
+
+/* Header: round date on the left, tournament/summary badges to the right. */
+.round-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  flex-wrap: wrap;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* One label-left / value-right line per field (Course, Tees, Holes, ...). */
+.round-card-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.round-card-row:last-of-type { border-bottom: none; }
+.round-card-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.68rem;
+  font-weight: 600;
+  align-self: center;
+}
+.round-card-value {
+  color: var(--navy);
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Edit/Delete actions: full-width, comfortable tap targets (>=44px tall). */
+.round-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.round-card-actions button,
+.round-card-actions .edit-round,
+.round-card-actions .delete-round {
+  flex: 1 1 0;
+  min-height: 44px;
+}
+
+/* ---------------------------------------------------------------------------
  * Mobile breakpoint (project's FIRST @media rule): below 640px swap the roster
  * layouts. Scoped so ONLY the admin roster is affected:
  *   - `#rosterTable .table-scroll` hides the per-group table wrappers injected
@@ -461,4 +577,12 @@ th.clickable:hover { color: var(--navy); }
 @media (max-width: 640px) {
   #rosterTable .table-scroll { display: none; }
   .roster-cards { display: block; }
+
+  /* Rounds list: below 640px hide the player-detail Rounds table and show the
+     stacked round cards instead. Rooted at #playerDetailRounds (and the
+     round-specific .round-cards class) so no other .table-scroll table is
+     affected (Req 5.5). The desktop path (> 640px) keeps the table. */
+  #playerDetailRounds > table,
+  #playerDetailRounds .rounds-table { display: none; }
+  #playerDetailRounds .round-cards { display: block; }
 }

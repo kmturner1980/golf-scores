@@ -90,10 +90,46 @@
       .sort(function (a, b) { return String(a.Name).localeCompare(String(b.Name)); }); // Req 4.8
   }
 
+  // Pure rounds-row -> labeled display-fields mapper behind the player-view
+  // rounds presentation. Given an already-computed round display row, return
+  // the same labeled values the desktop table cells show, as ordered
+  // { label, value } pairs, so the mobile card layout and the desktop table
+  // stay in sync from a single source. This helper is intentionally PURE: it
+  // does NO DOM work, NO HTML escaping (escaping happens at render time), and
+  // NO Stats computation — it only relabels/normalizes values that were already
+  // computed by the caller, applying the `null -> '—'` rule for Score and Putts.
+  //
+  //   row = {
+  //     date:        string  // preformatted date (may already include badge HTML)
+  //     course:      string
+  //     tees:        string
+  //     holesPlayed: number
+  //     score:       number | null   // null -> '—'
+  //     diff:        string          // preformatted differential (e.g. Stats.fmtDiff output)
+  //     putts:       number | null   // null -> '—'
+  //   }
+  //
+  // Returns exactly seven pairs, in table-column order:
+  //   Date, Course, Tees, Holes, Score, Diff, Putts.
+  function roundCardFields(row) {
+    var r = row || {};
+    var dash = '—';
+    return [
+      { label: 'Date', value: r.date },
+      { label: 'Course', value: r.course },
+      { label: 'Tees', value: r.tees },
+      { label: 'Holes', value: r.holesPlayed },
+      { label: 'Score', value: r.score == null ? dash : r.score },
+      { label: 'Diff', value: r.diff },
+      { label: 'Putts', value: r.putts == null ? dash : r.putts }
+    ];
+  }
+
   return {
     isCurrentYearRow: isCurrentYearRow,
     resolveViewingYearId: resolveViewingYearId,
     existingPlayerCandidates: existingPlayerCandidates,
-    importCandidatesFrom: importCandidatesFrom
+    importCandidatesFrom: importCandidatesFrom,
+    roundCardFields: roundCardFields
   };
 });

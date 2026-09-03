@@ -24,6 +24,7 @@
   var resolveViewingYearId = AdminLogic.resolveViewingYearId;
   var existingPlayerCandidates = AdminLogic.existingPlayerCandidates;
   var importCandidatesFrom = AdminLogic.importCandidatesFrom;
+  var roundCardFields = AdminLogic.roundCardFields;
 
   var PROP_ITERATIONS = 200; // >= 100 as required by the spec
 
@@ -449,6 +450,182 @@
     assertEqual(isEmptyLabel(undefined), true, 'undefined is empty');
     assertEqual(isEmptyLabel('2027-2028'), false, 'a real label is not empty');
     assertEqual(isEmptyLabel('  x  '), false, 'a label with surrounding whitespace is not empty');
+  });
+
+  // =========================================================================
+  // ---- TASK 3.3: roundCardFields (admin-player-fullscreen-view) -----------
+  // The expected table-column order and labels, in one place.
+  var ROUND_LABELS = ['Date', 'Course', 'Tees', 'Holes', 'Score', 'Diff', 'Putts'];
+
+  // Reference mapper: the plain-language contract from the design doc.
+  // Seven labeled pairs in table-column order; Score/Putts map null -> '—';
+  // every other field passes through verbatim.
+  function expectedRoundFields(row) {
+    var r = row || {};
+    var dash = '—';
+    return [
+      { label: 'Date', value: r.date },
+      { label: 'Course', value: r.course },
+      { label: 'Tees', value: r.tees },
+      { label: 'Holes', value: r.holesPlayed },
+      { label: 'Score', value: r.score == null ? dash : r.score },
+      { label: 'Diff', value: r.diff },
+      { label: 'Putts', value: r.putts == null ? dash : r.putts }
+    ];
+  }
+
+  // ---- Example / unit tests ----------------------------------------------
+  test('roundCardFields returns the 7 table-column labels in order with passthrough values', function () {
+    var row = {
+      date: '2024-05-01',
+      course: 'Pebble Beach',
+      tees: 'Blue',
+      holesPlayed: 18,
+      score: 82,
+      diff: '+9.4',
+      putts: 31
+    };
+    var fields = roundCardFields(row);
+    assertEqual(fields.length, 7, 'must return exactly 7 pairs');
+    for (var i = 0; i < ROUND_LABELS.length; i++) {
+      assertEqual(fields[i].label, ROUND_LABELS[i], 'label at index ' + i + ' must be ' + ROUND_LABELS[i]);
+    }
+    assertEqual(fields[0].value, '2024-05-01', 'Date passes through');
+    assertEqual(fields[1].value, 'Pebble Beach', 'Course passes through');
+    assertEqual(fields[2].value, 'Blue', 'Tees passes through');
+    assertEqual(fields[3].value, 18, 'Holes passes through');
+    assertEqual(fields[4].value, 82, 'Score passes through');
+    assertEqual(fields[5].value, '+9.4', 'Diff passes through');
+    assertEqual(fields[6].value, 31, 'Putts passes through');
+  });
+
+  test('roundCardFields maps null Score and null Putts to the em-dash', function () {
+    var fields = roundCardFields({
+      date: 'Apr 3',
+      course: 'Local',
+      tees: 'White',
+      holesPlayed: 9,
+      score: null,
+      diff: '—',
+      putts: null
+    });
+    assertEqual(fields[4].value, '—', 'null Score -> em-dash');
+    assertEqual(fields[6].value, '—', 'null Putts -> em-dash');
+  });
+
+  test('roundCardFields keeps a 0 Score and 0 Putts (only null becomes the em-dash)', function () {
+    var fields = roundCardFields({
+      date: 'Apr 3',
+      course: 'Local',
+      tees: 'White',
+      holesPlayed: 9,
+      score: 0,
+      diff: '0.0',
+      putts: 0
+    });
+    assertEqual(fields[4].value, 0, '0 Score is preserved, not turned into em-dash');
+    assertEqual(fields[6].value, 0, '0 Putts is preserved, not turned into em-dash');
+  });
+
+  test('roundCardFields passes non-Score/Putts fields through verbatim, including badge HTML in date', function () {
+    var badgeDate = 'May 1 <span class="badge badge-tournament">T</span>';
+    var fields = roundCardFields({
+      date: badgeDate,
+      course: 'Augusta & <b>National</b>',
+      tees: 'Championship',
+      holesPlayed: 18,
+      score: 74,
+      diff: '−1.2',
+      putts: 28
+    });
+    // The mapper does NOT strip or escape badge/HTML content in date.
+    assertEqual(fields[0].value, badgeDate, 'date (with badge HTML) is passed through unaltered');
+    assertEqual(fields[1].value, 'Augusta & <b>National</b>', 'course HTML entities/tags are untouched');
+    assertEqual(fields[2].value, 'Championship', 'tees passes through');
+    assertEqual(fields[3].value, 18, 'holes passes through');
+    assertEqual(fields[5].value, '−1.2', 'diff (preformatted) passes through');
+  });
+
+  // ---- Round-row generator (Property 1) ----------------------------------
+  // Generates rows across the input space: score/putts as null OR a number
+  // (including 0), varied date strings (some with badge HTML), and free-form
+  // course/tees/diff strings, so the layout-independence invariant is exercised
+  // on the boundaries that matter (null vs 0 vs positive).
+  var DATE_POOL = [
+    'Apr 3', 'May 1', '2024-05-01',
+    'May 1 <span class="badge badge-tournament">T</span>',
+    'Jul 4 <span class="badge badge-summary">S</span>',
+    ''
+  ];
+  var COURSE_POOL = ['Pebble Beach', 'Local', 'Augusta & <b>National</b>', '', 'St. Andrews'];
+  var TEES_POOL = ['Blue', 'White', 'Red', 'Championship', ''];
+  var DIFF_POOL = ['+9.4', '0.0', '−1.2', '—', ''];
+
+  // A score/putts value: null ~1/3 of the time, else a number that can be 0.
+  function genScoreLike() {
+    if (rand() < 0.34) return null;
+    return randInt(0, 120);
+  }
+
+  function genRoundRow() {
+    return {
+      date: pick(DATE_POOL),
+      course: pick(COURSE_POOL),
+      tees: pick(TEES_POOL),
+      holesPlayed: pick([9, 18, 0]),
+      score: genScoreLike(),
+      diff: pick(DIFF_POOL),
+      putts: genScoreLike()
+    };
+  }
+
+  function fieldsEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].label !== b[i].label) return false;
+      if (a[i].value !== b[i].value) return false;
+    }
+    return true;
+  }
+
+  // Feature: admin-player-fullscreen-view, Property 1: Round display values are layout-independent
+  // Validates: Requirements 5.4
+  test('Property 1: round display values are layout-independent (card source equals table values)', function () {
+    for (var i = 0; i < PROP_ITERATIONS; i++) {
+      var row = genRoundRow();
+      var actual = roundCardFields(row);
+      var expected = expectedRoundFields(row);
+
+      // Same seven labeled values the desktop table shows, in column order.
+      assert(
+        fieldsEqual(actual, expected),
+        'card fields differ from the expected table values for row=' + JSON.stringify(row) +
+          ' -> got ' + JSON.stringify(actual)
+      );
+
+      // Spell out the invariant's key pieces for extra safety.
+      assertEqual(actual.length, 7, 'must always return exactly 7 pairs');
+      for (var j = 0; j < ROUND_LABELS.length; j++) {
+        assertEqual(actual[j].label, ROUND_LABELS[j], 'label order must be stable at index ' + j);
+      }
+      // Score/Putts -> '—' iff null; otherwise the raw value passes through.
+      assertEqual(
+        actual[4].value,
+        row.score == null ? '—' : row.score,
+        'Score cell must be em-dash iff null, else passthrough'
+      );
+      assertEqual(
+        actual[6].value,
+        row.putts == null ? '—' : row.putts,
+        'Putts cell must be em-dash iff null, else passthrough'
+      );
+      // Non-Score/Putts fields are verbatim passthrough (layout-independent).
+      assertEqual(actual[0].value, row.date, 'Date passthrough');
+      assertEqual(actual[1].value, row.course, 'Course passthrough');
+      assertEqual(actual[2].value, row.tees, 'Tees passthrough');
+      assertEqual(actual[3].value, row.holesPlayed, 'Holes passthrough');
+      assertEqual(actual[5].value, row.diff, 'Diff passthrough');
+    }
   });
 
   // ---- Summary -----------------------------------------------------------
