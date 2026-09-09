@@ -16,6 +16,11 @@
 // Tees dropdown: picking one fills in that tee's Course Rating and Slope
 // Rating for computing the round's score differential. Courses without
 // `tees` fall back to manual tee name/rating/slope entry, same as "Other".
+//
+// A tee entry can also carry `yardages` (an 18-length array, hole 1 first,
+// from the same verified scorecard) to sharpen the SG:OTT stat in stats.js
+// -- none do yet, so SG:OTT falls back to a typical yardage for the hole's
+// par until a course gets real ones added.
 const IDAHO_COURSES = [
   {
     name: 'BanBury Golf Course', city: 'Eagle',
@@ -169,3 +174,8 @@ const IDAHO_COURSES = [
 
 const OTHER_COURSE_VALUE = '__other__';
 const OTHER_TEE_VALUE = '__other_tee__';
+
+/** Looks up an IDAHO_COURSES entry by its exact display name, or null. */
+function findCourseByName(name) {
+  return IDAHO_COURSES.find((c) => c.name === name) || null;
+}

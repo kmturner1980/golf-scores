@@ -24,7 +24,7 @@ function initializeSheets() {
 
   var holeScores = ss.getSheetByName(SHEET_HOLE_SCORES) || ss.insertSheet(SHEET_HOLE_SCORES);
   if (holeScores.getLastRow() === 0) {
-    holeScores.appendRow(['RoundID', 'Hole', 'Par', 'Score', 'FairwayHit', 'GIR', 'Putts', 'Penalties']);
+    holeScores.appendRow(['RoundID', 'Hole', 'Par', 'Score', 'FairwayHit', 'GIR', 'Putts', 'Penalties', 'PuttDistance']);
   }
 
   var years = ss.getSheetByName(SHEET_YEARS) || ss.insertSheet(SHEET_YEARS);
@@ -131,6 +131,25 @@ function migrateAddRatingColumns() {
     sheet.getRange(1, afterCol + i + 1).setValue(name);
   });
   Logger.log('Added rating columns to Rounds sheet: ' + missing.join(', '));
+}
+
+/**
+ * Run this once if your HoleScores sheet was created before first-putt
+ * distance tracking existed (used for Strokes Gained: Putting). Safe to run
+ * multiple times -- it's a no-op if the column is already there. Existing
+ * hole rows will have a blank PuttDistance until re-entered/edited.
+ */
+function migrateAddPuttDistanceColumn() {
+  var sheet = getSheet_(SHEET_HOLE_SCORES);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('PuttDistance') !== -1) {
+    Logger.log('PuttDistance column already exists -- nothing to do.');
+    return;
+  }
+  var penaltiesCol = headers.indexOf('Penalties') + 1;
+  sheet.insertColumnAfter(penaltiesCol);
+  sheet.getRange(1, penaltiesCol + 1).setValue('PuttDistance');
+  Logger.log('Added PuttDistance column to HoleScores sheet.');
 }
 
 /** "2026-2027"-style default for a brand-new Years sheet, based on today. */

@@ -1,3 +1,17 @@
+// First-putt distance buckets, used to feed Strokes Gained: Putting
+// (see Stats.EXPECTED_PUTTS_BY_BUCKET in stats.js). Bucketed rather than an
+// exact number since a player can only eyeball it -- optional, so leaving it
+// blank just excludes that hole from the SG:P calculation.
+const PUTT_DISTANCE_OPTIONS = [
+  { value: '', label: '—' },
+  { value: '0-3', label: '0-3 ft' },
+  { value: '3-10', label: '3-10 ft' },
+  { value: '10-20', label: '10-20 ft' },
+  { value: '20-30', label: '20-30 ft' },
+  { value: '30-50', label: '30-50 ft' },
+  { value: '50+', label: '50+ ft' }
+];
+
 // Renders the editable hole-by-hole score table used on both the player
 // entry form and the admin round-editor. Shared so the "par is locked when
 // we know the real course, editable otherwise" behavior only lives in one
@@ -19,6 +33,7 @@ const HoleTable = {
       const isPar3 = Number(par) === 3;
       const fairwayVal = ex ? ex.fairway : 'N';
       const girVal = ex ? ex.gir : 'N';
+      const puttDistanceVal = ex && ex.puttDistance != null ? ex.puttDistance : '';
       return `
       <tr data-hole="${h}">
         <td class="hole-num" data-label="Hole">${h}</td>
@@ -39,6 +54,11 @@ const HoleTable = {
         </td>
         <td data-label="Putts"><input type="number" class="putts" min="0" max="10" value="${ex && ex.putts != null ? ex.putts : ''}" style="width:4.5em"></td>
         <td data-label="Penalty"><input type="number" class="penalty" min="0" max="10" value="${ex && ex.penalty != null ? ex.penalty : 0}" style="width:4.5em"></td>
+        <td data-label="1st Putt">
+          <select class="putt-distance">
+            ${PUTT_DISTANCE_OPTIONS.map((o) => `<option value="${o.value}" ${puttDistanceVal === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+          </select>
+        </td>
       </tr>`;
     }).join('');
     this.attachParListeners(tbody);
@@ -105,7 +125,8 @@ const HoleTable = {
         fairway: fairway.disabled ? 'NA' : fairway.value,
         gir: tr.querySelector('.gir').value,
         putts: tr.querySelector('.putts').value,
-        penalty: tr.querySelector('.penalty').value
+        penalty: tr.querySelector('.penalty').value,
+        puttDistance: tr.querySelector('.putt-distance').value
       };
     });
   }

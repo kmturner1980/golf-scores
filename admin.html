@@ -61,6 +61,19 @@
 
     <div class="card">
       <h2>Roster</h2>
+      <div class="field-row" style="align-items:end; flex-wrap:wrap; margin-bottom:0.75rem">
+        <div class="field" style="margin-bottom:0; flex:1; min-width:160px">
+          <label for="rosterNameFilter">Filter by name</label>
+          <input type="text" id="rosterNameFilter" placeholder="Player name…">
+        </div>
+        <div class="field" style="margin-bottom:0; width:9rem">
+          <label for="rosterMinRounds">Min rounds played</label>
+          <input type="number" id="rosterMinRounds" min="0" step="1" placeholder="0">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <button type="button" id="rosterFilterClearBtn" class="secondary">Clear</button>
+        </div>
+      </div>
       <div id="rosterTable" class="table-scroll"></div>
     </div>
 
@@ -303,6 +316,7 @@
                   <th>GIR</th>
                   <th>Putts</th>
                   <th>Penalty</th>
+                  <th>1st Putt</th>
                 </tr>
               </thead>
               <tbody id="editHoleRows"></tbody>

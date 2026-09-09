@@ -171,6 +171,7 @@
     const holesByRound = Stats.groupBy(holeScores, 'RoundID');
     let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
     agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+    Object.assign(agg, Stats.aggregateOffTee(rounds, holesByRound, findCourseByName));
     const avgDiff = Stats.averageDifferential(rounds, holesByRound);
     const tiles = [
       ['Rounds', rounds.length],
@@ -179,6 +180,8 @@
       ['Fairways %', Stats.fmtPct(agg.fairwayPct)],
       ['GIR %', Stats.fmtPct(agg.girPct)],
       ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)],
+      ['SG: Putting /18', Stats.fmtDiff(agg.sgPuttingPer18)],
+      ['SG: Off the Tee /18', Stats.fmtDiff(agg.sgOffTeePer18)],
       ['Birdies+', agg.birdies + agg.eagles],
       ['Doubles', agg.doubles],
       ['Worse than Dbl', agg.worse]

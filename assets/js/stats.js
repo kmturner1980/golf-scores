@@ -1,3 +1,42 @@
+// Approximate expected-putts-by-distance baseline, bucketed since a player
+// can only eyeball first-putt distance (see the "1st Putt" column in
+// HoleTable). Rough published PGA Tour-average figures. SG:Putting compares
+// actual putts against this, so it's a "vs. tour average" number -- useful
+// for tracking a player's trend and comparing teammates against each other,
+// not literal parity with tour pros (high schoolers will run negative here,
+// and that's expected).
+const EXPECTED_PUTTS_BY_BUCKET = {
+  '0-3': 1.02,
+  '3-10': 1.3,
+  '10-20': 1.5,
+  '20-30': 1.75,
+  '30-50': 1.95,
+  '50+': 2.15
+};
+
+// Approximate expected-strokes-to-hole-out by distance (yards), a scratch-
+// golfer baseline curve used for SG:OTT. We don't track exact yardages or
+// tee-shot outcomes (just fairway hit/miss), so this is a rough model, not
+// tour ShotLink data -- linear interpolation between the listed points.
+const EXPECTED_STROKES_BY_YARDS = [
+  [0, 0], [10, 1.0], [20, 1.4], [30, 1.6], [40, 1.7], [50, 1.8], [60, 1.9],
+  [80, 2.1], [100, 2.4], [120, 2.5], [150, 2.8], [175, 2.9], [200, 3.0],
+  [225, 3.2], [250, 3.5], [275, 3.6], [300, 3.8], [325, 3.9], [350, 4.0],
+  [375, 4.1], [400, 4.2], [425, 4.3], [450, 4.4], [475, 4.5], [500, 4.6],
+  [525, 4.7], [550, 4.8]
+];
+
+// Typical hole yardage by par, used for SG:OTT when a course doesn't have
+// real per-tee yardages on file (see courses.js -- a `tees[].yardages`
+// array, one entry per hole, is picked up automatically if a course ever
+// gets one; today none do, so every course falls back to this).
+const TYPICAL_YARDAGE_BY_PAR = { 3: 155, 4: 380, 5: 510 };
+
+// Assumed typical drive distance (yards) by whether the tee shot found the
+// fairway. There's no real distance-remaining data, so SG:OTT models it
+// from this plus hole yardage -- a rough estimate, not a measurement.
+const DRIVE_DISTANCE_BY_LIE = { hit: 200, miss: 165 };
+
 // Pure functions for turning raw hole-score rows into the stats coaches
 // care about. Shared between player.html (personal stats) and admin.html
 // (roster + per-player stats), so all the math lives in exactly one place.
@@ -38,7 +77,9 @@ const Stats = {
       girCounted: 0,
       totalPutts: 0,
       puttsCounted: 0,
-      totalPenalties: 0
+      totalPenalties: 0,
+      sgPuttingSum: 0,
+      sgPuttingHoles: 0
     };
     const bucket = { eagle: 'eagles', birdie: 'birdies', par: 'pars', bogey: 'bogeys', double: 'doubles', worse: 'worse' };
 
@@ -63,6 +104,12 @@ const Stats = {
         agg.puttsCounted++;
       }
       if (h.Penalties) agg.totalPenalties += Number(h.Penalties) || 0;
+
+      const expectedPutts = EXPECTED_PUTTS_BY_BUCKET[h.PuttDistance];
+      if (expectedPutts != null && h.Putts !== '' && h.Putts != null && !isNaN(Number(h.Putts))) {
+        agg.sgPuttingSum += expectedPutts - Number(h.Putts);
+        agg.sgPuttingHoles++;
+      }
     });
 
     return agg;
@@ -76,7 +123,9 @@ const Stats = {
       puttingAvgPerHole: agg.puttsCounted ? agg.totalPutts / agg.puttsCounted : null,
       puttingAvgPer18: agg.puttsCounted ? (agg.totalPutts / agg.puttsCounted) * 18 : null,
       scoringAvgPerHole: agg.holesPlayed ? agg.totalStrokes / agg.holesPlayed : null,
-      scoringAvgPer18: agg.holesPlayed ? (agg.totalStrokes / agg.holesPlayed) * 18 : null
+      scoringAvgPer18: agg.holesPlayed ? (agg.totalStrokes / agg.holesPlayed) * 18 : null,
+      sgPuttingPerHole: agg.sgPuttingHoles ? agg.sgPuttingSum / agg.sgPuttingHoles : null,
+      sgPuttingPer18: agg.sgPuttingHoles ? (agg.sgPuttingSum / agg.sgPuttingHoles) * 18 : null
     });
   },
 
@@ -158,6 +207,69 @@ const Stats = {
     });
 
     return agg;
+  },
+
+  // Linear interpolation over EXPECTED_STROKES_BY_YARDS -- the scratch-
+  // golfer baseline used by SG:OTT. Clamped at both ends of the table.
+  expectedStrokesFromDistance(yards) {
+    const table = EXPECTED_STROKES_BY_YARDS;
+    if (yards <= table[0][0]) return table[0][1];
+    for (let i = 1; i < table.length; i++) {
+      const [y0, s0] = table[i - 1];
+      const [y1, s1] = table[i];
+      if (yards <= y1) return s0 + (s1 - s0) * (yards - y0) / (y1 - y0);
+    }
+    return table[table.length - 1][1];
+  },
+
+  // A hole's tee yardage for SG:OTT -- real per-tee yardage if the course
+  // has one on file (courses.js), otherwise a typical distance for that par.
+  holeYardage(hole, par, courseData, teeName) {
+    if (courseData && courseData.tees && teeName) {
+      const tee = courseData.tees.find((t) => t.name === teeName);
+      if (tee && tee.yardages && tee.yardages[hole - 1] != null) return tee.yardages[hole - 1];
+    }
+    return TYPICAL_YARDAGE_BY_PAR[par] || TYPICAL_YARDAGE_BY_PAR[4];
+  },
+
+  /**
+   * SG: Off the Tee for one round -- par 4/5 holes only (a par-3 tee shot is
+   * an approach shot, not "off the tee", and we don't track it separately).
+   * Needs each hole's Par and FairwayHit; models distance remaining after
+   * the tee shot from an assumed drive distance rather than a measurement.
+   * `findCourse(name)` should return the matching courses.js entry or null.
+   */
+  sgOffTeeForRound(round, holeRows, findCourse) {
+    const courseData = findCourse ? findCourse(round.Course) : null;
+    let sum = 0;
+    let count = 0;
+    holeRows.forEach((h) => {
+      const par = Number(h.Par);
+      if (par !== 4 && par !== 5) return;
+      if (h.FairwayHit !== 'Y' && h.FairwayHit !== 'N') return;
+      const teeYards = Stats.holeYardage(Number(h.Hole), par, courseData, round.Tees);
+      const drive = h.FairwayHit === 'Y' ? DRIVE_DISTANCE_BY_LIE.hit : DRIVE_DISTANCE_BY_LIE.miss;
+      const remaining = Math.max(teeYards - drive, 20);
+      sum += Stats.expectedStrokesFromDistance(teeYards) - Stats.expectedStrokesFromDistance(remaining) - 1;
+      count++;
+    });
+    return { sum, count };
+  },
+
+  // Aggregates SG:OTT across every hole-by-hole round (summary rounds have
+  // no per-hole fairway data to work from, so they contribute nothing).
+  aggregateOffTee(rounds, holesByRound, findCourse) {
+    let sum = 0;
+    let count = 0;
+    rounds.filter((r) => !Stats.isSummaryRound(r)).forEach((r) => {
+      const holeResult = Stats.sgOffTeeForRound(r, holesByRound[r.RoundID] || [], findCourse);
+      sum += holeResult.sum;
+      count += holeResult.count;
+    });
+    return {
+      sgOffTeePerHole: count ? sum / count : null,
+      sgOffTeePer18: count ? (sum / count) * 18 : null
+    };
   },
 
   // Standard USGA-style score differential: how a round compares to scratch

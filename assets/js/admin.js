@@ -68,6 +68,9 @@
     yearSelect: document.getElementById('yearSelect'),
     teamTiles: document.getElementById('teamTiles'),
     rosterTable: document.getElementById('rosterTable'),
+    rosterNameFilter: document.getElementById('rosterNameFilter'),
+    rosterMinRounds: document.getElementById('rosterMinRounds'),
+    rosterFilterClearBtn: document.getElementById('rosterFilterClearBtn'),
     playerDetail: document.getElementById('playerDetail'),
     backToRosterTop: document.getElementById('backToRosterTop'),
     backToRosterBottom: document.getElementById('backToRosterBottom'),
@@ -143,6 +146,11 @@
   let sortKey = 'avg';
   let sortDir = 'asc';
   let selectedYearId = null;
+  // Roster-only filters (name substring + minimum rounds played), used to
+  // narrow the Boys/Girls tables e.g. when deciding who to cut. Team Totals
+  // is unaffected -- it's meant to reflect the whole rostered team.
+  let rosterNameFilter = '';
+  let rosterMinRounds = 0;
   // The season currently being administered in the Edit-Year panel (Tasks 6.x).
   // DISTINCT from selectedYearId (which drives the main dashboard): the coach
   // can edit a season other than the one they're viewing, so every Edit-Year
@@ -374,6 +382,7 @@
       const rounds = g.players.flatMap((p) => roundsByPlayer[p.Token] || []);
       let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
       agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+      Object.assign(agg, Stats.aggregateOffTee(rounds, holesByRound, findCourseByName));
       const avgDiff = Stats.averageDifferential(rounds, holesByRound);
       const tilesHtml = [
         ['Players', g.players.length],
@@ -382,7 +391,9 @@
         ['Avg Differential', Stats.fmtDiff(avgDiff)],
         ['Fairways %', Stats.fmtPct(agg.fairwayPct)],
         ['GIR %', Stats.fmtPct(agg.girPct)],
-        ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)]
+        ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)],
+        ['SG: Putting /18', Stats.fmtDiff(agg.sgPuttingPer18)],
+        ['SG: Off the Tee /18', Stats.fmtDiff(agg.sgOffTeePer18)]
       ].map(([label, value]) => `<div class="stat-tile"><div class="value">${value}</div><div class="label">${label}</div></div>`).join('');
       return `<h3>${escapeHtml(g.title)} Team Totals</h3><div class="stat-grid" style="margin-bottom:1rem">${tilesHtml}</div>`;
     }).join('');
@@ -400,6 +411,8 @@
     { key: 'fairway', label: 'Fairway %', value: (row) => row.agg.fairwayPct },
     { key: 'gir', label: 'GIR %', value: (row) => row.agg.girPct },
     { key: 'putts', label: 'Putts /18', value: (row) => row.agg.puttingAvgPer18 },
+    { key: 'sgPutting', label: 'SG:P /18', value: (row) => row.agg.sgPuttingPer18 },
+    { key: 'sgOtt', label: 'SG:OTT /18', value: (row) => row.agg.sgOffTeePer18 },
     { key: 'birdies', label: 'Birdies+', value: (row) => row.agg.birdies + row.agg.eagles },
     { key: 'doubles', label: 'Doubles', value: (row) => row.agg.doubles },
     { key: 'worse', label: 'Worse', value: (row) => row.agg.worse }
@@ -438,6 +451,8 @@
           <td>${Stats.fmtPct(agg.fairwayPct)}</td>
           <td>${Stats.fmtPct(agg.girPct)}</td>
           <td>${Stats.fmtAvg(agg.puttingAvgPer18)}</td>
+          <td>${Stats.fmtDiff(agg.sgPuttingPer18)}</td>
+          <td>${Stats.fmtDiff(agg.sgOffTeePer18)}</td>
           <td>${agg.birdies + agg.eagles}</td>
           <td>${agg.doubles}</td>
           <td>${agg.worse}</td>
@@ -468,6 +483,8 @@
             <div class="roster-card-row"><span class="roster-card-label">Fairway %</span><span class="roster-card-value">${Stats.fmtPct(agg.fairwayPct)}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">GIR %</span><span class="roster-card-value">${Stats.fmtPct(agg.girPct)}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Putts /18</span><span class="roster-card-value">${Stats.fmtAvg(agg.puttingAvgPer18)}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">SG: Putting /18</span><span class="roster-card-value">${Stats.fmtDiff(agg.sgPuttingPer18)}</span></div>
+            <div class="roster-card-row"><span class="roster-card-label">SG: Off the Tee /18</span><span class="roster-card-value">${Stats.fmtDiff(agg.sgOffTeePer18)}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Birdies+</span><span class="roster-card-value">${agg.birdies + agg.eagles}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Doubles</span><span class="roster-card-value">${agg.doubles}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Worse</span><span class="roster-card-value">${agg.worse}</span></div>
@@ -488,13 +505,26 @@
       return;
     }
 
+    const nameFilter = rosterNameFilter.trim().toLowerCase();
+    const minRounds = Number(rosterMinRounds) || 0;
+
     const rows = rosterPlayers.map((p) => {
       const rounds = roundsByPlayer[p.Token] || [];
       let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
       agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+      Object.assign(agg, Stats.aggregateOffTee(rounds, holesByRound, findCourseByName));
       const avgDiff = Stats.averageDifferential(rounds, holesByRound);
       return { player: p, rounds, agg, avgDiff };
+    }).filter((row) => {
+      if (nameFilter && !row.player.Name.toLowerCase().includes(nameFilter)) return false;
+      if (row.rounds.length < minRounds) return false;
+      return true;
     });
+
+    if (!rows.length) {
+      els.rosterTable.innerHTML = '<p class="muted">No players match this filter.</p>';
+      return;
+    }
 
     const groups = [
       { title: 'Boys', rows: rows.filter((r) => r.player.Sex === 'Boy') },
@@ -540,6 +570,7 @@
     const holesByRound = Stats.groupBy(data.holeScores, 'RoundID');
     let agg = Stats.withRates(Stats.aggregateRounds(rounds, holesByRound));
     agg = Stats.applyTournamentWeighting(agg, rounds, holesByRound);
+    Object.assign(agg, Stats.aggregateOffTee(rounds, holesByRound, findCourseByName));
     const avgDiff = Stats.averageDifferential(rounds, holesByRound);
 
     els.playerDetailName.textContent = player.Name;
@@ -561,6 +592,8 @@
       ['Fairway %', Stats.fmtPct(agg.fairwayPct)],
       ['GIR %', Stats.fmtPct(agg.girPct)],
       ['Putts /18', Stats.fmtAvg(agg.puttingAvgPer18)],
+      ['SG: Putting /18', Stats.fmtDiff(agg.sgPuttingPer18)],
+      ['SG: Off the Tee /18', Stats.fmtDiff(agg.sgOffTeePer18)],
       ['Eagles', agg.eagles],
       ['Birdies', agg.birdies],
       ['Pars', agg.pars],
@@ -1368,7 +1401,8 @@
         fairway: h.FairwayHit,
         gir: h.GIR,
         putts: h.Putts,
-        penalty: h.Penalties
+        penalty: h.Penalties,
+        puttDistance: h.PuttDistance
       };
     });
     // Admin edits are never par-locked -- courseData is always null here so a
@@ -1507,6 +1541,22 @@
     } catch (err) {
       alert(err.message);
     }
+  });
+
+  els.rosterNameFilter.addEventListener('input', () => {
+    rosterNameFilter = els.rosterNameFilter.value;
+    renderRoster();
+  });
+  els.rosterMinRounds.addEventListener('input', () => {
+    rosterMinRounds = els.rosterMinRounds.value;
+    renderRoster();
+  });
+  els.rosterFilterClearBtn.addEventListener('click', () => {
+    rosterNameFilter = '';
+    rosterMinRounds = 0;
+    els.rosterNameFilter.value = '';
+    els.rosterMinRounds.value = '';
+    renderRoster();
   });
 
   els.yearSelect.addEventListener('change', () => {

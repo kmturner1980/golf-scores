@@ -49,7 +49,7 @@ function validateRoundPayload_(payload) {
 
 /**
  * Submits a full round for the player identified by `token`. Either
- * hole-by-hole (payload.holes: [{hole, par, score, fairway, gir, putts, penalty}])
+ * hole-by-hole (payload.holes: [{hole, par, score, fairway, gir, putts, penalty, puttDistance}])
  * or, when payload.entryMode === 'summary', just round totals
  * (summaryPar, summaryScore, summaryHoles, and optionally
  * summaryFairwaysHit/summaryFairwaysAttempted/summaryGIR/summaryPutts/summaryPenalties).
@@ -89,7 +89,8 @@ function appendHoleScores_(roundId, holes) {
       FairwayHit: par === 3 ? 'NA' : (h.fairway || 'N'),
       GIR: h.gir || 'N',
       Putts: h.putts === '' || h.putts == null ? '' : Number(h.putts),
-      Penalties: h.penalty === '' || h.penalty == null ? 0 : Number(h.penalty)
+      Penalties: h.penalty === '' || h.penalty == null ? 0 : Number(h.penalty),
+      PuttDistance: (h.puttDistance || '').toString().trim()
     });
   });
 }

@@ -85,7 +85,7 @@ you also create a new deployment version. If you're not sure whether
 you're on the latest code, just redo it: copy every file under
 `apps-script/` into the Apps Script editor and create a new version.
 
-Six one-time migrations, run from the Apps Script editor's function
+Seven one-time migrations, run from the Apps Script editor's function
 dropdown (same way you ran `initializeSheets`) if your sheet predates them
 — all are safe to run more than once:
 - `migrateAddSexColumn` — adds the `Sex` column to Players.
@@ -104,6 +104,9 @@ dropdown (same way you ran `initializeSheets`) if your sheet predates them
   — rosters every existing player onto every existing year, so nobody you
   already had disappears. After that, manage who's on which season's roster
   from the admin dashboard.
+- `migrateAddPuttDistanceColumn` — adds the `PuttDistance` column to
+  HoleScores (used for SG: Putting). Existing hole rows are left blank until
+  re-entered or edited.
 
 ### 4. Point the frontend at your API
 
@@ -193,11 +196,32 @@ same as they do for average score.
 ## Data tracked per round
 
 For each hole: par, score, fairway hit (skipped for par 3s), green in
-regulation, putts, and penalty strokes.
+regulation, putts, penalty strokes, and an optional first-putt distance
+bucket (0-3/3-10/10-20/20-30/30-50/50+ ft).
 
 From that, the app computes (per player and for the whole team): scoring
-average, fairway %, GIR %, putting average, and counts of eagles, birdies,
-pars, bogeys, double bogeys, and worse-than-double.
+average, fairway %, GIR %, putting average, counts of eagles, birdies,
+pars, bogeys, double bogeys, and worse-than-double, and two approximate
+Strokes Gained stats:
+
+- **SG: Putting** compares each hole's actual putts to an expected-putts
+  baseline for its first-putt distance bucket. Only holes where that bucket
+  was entered count toward it.
+- **SG: Off the Tee** compares the tee shot's outcome (fairway hit or missed,
+  on par 4s/5s only — a par-3 tee shot is scored as an approach, not a tee
+  shot) against a modeled scratch-golfer baseline. There's no real yardage
+  or shot-distance tracking, so this uses a typical yardage for the hole's
+  par (or a course's real per-hole yardages, if it ever gets some added to
+  `courses.js`) and an assumed drive distance to estimate distance
+  remaining — a directional estimate, not a precise measurement.
+
+Both are shown as "vs. baseline" numbers (positive is better, like the real
+Strokes Gained stat), useful for tracking a player's trend over time and
+comparing teammates against each other — not literal parity with tour pros,
+whose baseline these are loosely modeled on. The math lives in
+`assets/js/stats.js` (`EXPECTED_PUTTS_BY_BUCKET`, `EXPECTED_STROKES_BY_YARDS`,
+`TYPICAL_YARDAGE_BY_PAR`, `DRIVE_DISTANCE_BY_LIE`) if you want to tune the
+assumptions.
 
 ### Entering just the totals instead of hole-by-hole
 
@@ -219,7 +243,9 @@ hole).
 A totals-only round counts normally toward scoring average, score
 differential, fairway %, GIR %, putting average, and penalties. These
 rounds show a "Totals" badge alongside their date wherever rounds are
-listed.
+listed. There's no hole-by-hole first-putt distance or fairway result to
+work from, so totals-only rounds don't contribute to SG: Putting or
+SG: Off the Tee.
 
 Each player also has a Sex (Boy or Girl), set when they're added and
 editable afterward from their detail view in the admin dashboard.
@@ -230,9 +256,18 @@ The admin Roster (and Team Totals) is split into separate tables — Boys,
 Girls, and (if any player doesn't have a Sex set yet) Sex Not Set — each
 independently populated but sharing one sort setting. Click any Roster
 column header (name, rounds, scoring average, fairway %, GIR %, putts,
-birdies+, doubles, worse, status) to sort by it, click again to reverse
+SG: Putting, SG: Off the Tee, birdies+, doubles, worse, status) to sort by
+it, click again to reverse
 direction. Players with no data for that column (e.g. no rounds logged yet)
 always sort to the bottom.
+
+Above the Roster tables, "Filter by name" narrows every Boys/Girls/Sex Not
+Set table to players whose name contains the typed text (case-insensitive),
+and "Min rounds played" drops anyone with fewer rounds logged than the
+number entered — handy for cut decisions ("who am I deciding between" by
+name, or "who hasn't played enough rounds yet"). Both filters combine (AND),
+apply only to the Roster tables (Team Totals still reflects everyone
+rostered), and "Clear" resets both.
 
 ## Seasons ("Years")
 
@@ -274,8 +309,8 @@ The round entry form (and the admin round editor) has a "This was a
 tournament round" checkbox. When checked, that round's strokes count twice
 when computing scoring average — everywhere scoring average shows up
 (player stats, roster, team totals, sorting) — while every other stat
-(fairway %, GIR %, putting average, birdie/bogey counts, penalties) is
-unaffected and uses the round normally. Tournament rounds are called out
+(fairway %, GIR %, putting average, SG: Putting, SG: Off the Tee,
+birdie/bogey counts, penalties) is unaffected and uses the round normally. Tournament rounds are called out
 with a "Tournament" badge next to the date wherever rounds are listed.
 
 ## Coaching Focus (automated advice)
