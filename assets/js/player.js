@@ -11,6 +11,7 @@
     runningTotal: document.getElementById('runningTotal'),
     form: document.getElementById('roundForm'),
     formMessage: document.getElementById('formMessage'),
+    yearLockedNotice: document.getElementById('yearLockedNotice'),
     submitBtn: document.getElementById('submitBtn'),
     recentRounds: document.getElementById('recentRounds'),
     date: document.getElementById('date'),
@@ -249,11 +250,18 @@
       renderStatTiles(playerData.rounds, playerData.holeScores);
       renderRecentRounds(playerData.rounds, playerData.holeScores);
       els.content.classList.remove('hidden');
-      els.date.value = new Date().toISOString().slice(0, 10);
-      populateCourseSelect();
-      populateTeeSelect();
-      renderHoleRows();
-      syncEntryModeVisibility();
+      // A locked season blocks new submissions server-side regardless, but
+      // hiding the form instead of letting someone fill it out and fail at
+      // the end is much less frustrating.
+      els.form.classList.toggle('hidden', !!playerData.yearLocked);
+      els.yearLockedNotice.classList.toggle('hidden', !playerData.yearLocked);
+      if (!playerData.yearLocked) {
+        els.date.value = new Date().toISOString().slice(0, 10);
+        populateCourseSelect();
+        populateTeeSelect();
+        renderHoleRows();
+        syncEntryModeVisibility();
+      }
     } catch (err) {
       els.loadError.textContent = err.message;
       els.loadError.classList.remove('hidden');

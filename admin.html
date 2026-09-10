@@ -107,6 +107,14 @@
           <button type="button" id="editYearMakeCurrentBtn" class="secondary">Make This the Current Season</button>
         </div>
 
+        <!-- Lock/unlock: always shown; label toggles between the two states.
+             Locking blocks players from submitting new rounds into this
+             season -- admins can still add/edit/delete rounds regardless. -->
+        <div class="field" style="margin-bottom:0.75rem">
+          <button type="button" id="editYearLockBtn" class="secondary">Lock This Season</button>
+          <p class="muted" style="margin:0.35rem 0 0">While locked, players can't submit new rounds into this season. You still can, from here.</p>
+        </div>
+
         <!-- Year roster (rendered by JS: each rostered player + Remove) -->
         <h4 style="margin-bottom:0.5rem">Roster</h4>
         <div id="editYearRoster"></div>

@@ -21,6 +21,7 @@
   }
 
   var isCurrentYearRow = AdminLogic.isCurrentYearRow;
+  var isYearLockedRow = AdminLogic.isYearLockedRow;
   var resolveViewingYearId = AdminLogic.resolveViewingYearId;
   var existingPlayerCandidates = AdminLogic.existingPlayerCandidates;
   var importCandidatesFrom = AdminLogic.importCandidatesFrom;
@@ -111,11 +112,13 @@
       usedIds[id] = true;
 
       var isCurrentTrue = rand() < 0.4; // ~40% chance of being current-ish
+      var isLockedTrue = rand() < 0.4; // ~40% chance of being locked-ish
       var row = {
         YearID: id,
         Label: 'Season ' + id,
         CreatedAt: new Date(pick(tsPool)).toISOString(),
-        IsCurrent: isCurrentTrue ? pick(CURRENT_TRUE_ENCODINGS) : pick(CURRENT_FALSE_ENCODINGS)
+        IsCurrent: isCurrentTrue ? pick(CURRENT_TRUE_ENCODINGS) : pick(CURRENT_FALSE_ENCODINGS),
+        IsLocked: isLockedTrue ? pick(CURRENT_TRUE_ENCODINGS) : pick(CURRENT_FALSE_ENCODINGS)
       };
       list.push(row);
     }
@@ -439,6 +442,20 @@
     assertEqual(isCurrentYearRow({}), false, 'missing IsCurrent rejected');
     assertEqual(isCurrentYearRow(null), false, 'null row rejected');
     assertEqual(isCurrentYearRow(undefined), false, 'undefined row rejected');
+  });
+
+  test('isYearLockedRow accepts true, "TRUE", "true"', function () {
+    assertEqual(isYearLockedRow({ IsLocked: true }), true, 'boolean true accepted');
+    assertEqual(isYearLockedRow({ IsLocked: 'TRUE' }), true, '"TRUE" accepted');
+    assertEqual(isYearLockedRow({ IsLocked: 'true' }), true, '"true" accepted');
+  });
+
+  test('isYearLockedRow rejects false and undefined', function () {
+    assertEqual(isYearLockedRow({ IsLocked: false }), false, 'false rejected');
+    assertEqual(isYearLockedRow({ IsLocked: undefined }), false, 'undefined rejected');
+    assertEqual(isYearLockedRow({}), false, 'missing IsLocked rejected');
+    assertEqual(isYearLockedRow(null), false, 'null row rejected');
+    assertEqual(isYearLockedRow(undefined), false, 'undefined row rejected');
   });
 
   // Trimmed-empty label detection (drives Req 4.4). This mirrors the create
@@ -1015,6 +1032,11 @@
           r.canMakeCurrent,
           !r.isCurrent,
           'canMakeCurrent must be exactly the negation of isCurrent'
+        );
+        assertEqual(
+          r.isLocked,
+          isYearLockedRow(y),
+          'row.isLocked must match isYearLockedRow(matchingYear) for ' + JSON.stringify(y)
         );
       });
     }

@@ -85,7 +85,7 @@ you also create a new deployment version. If you're not sure whether
 you're on the latest code, just redo it: copy every file under
 `apps-script/` into the Apps Script editor and create a new version.
 
-Seven one-time migrations, run from the Apps Script editor's function
+Eight one-time migrations, run from the Apps Script editor's function
 dropdown (same way you ran `initializeSheets`) if your sheet predates them
 — all are safe to run more than once:
 - `migrateAddSexColumn` — adds the `Sex` column to Players.
@@ -107,6 +107,8 @@ dropdown (same way you ran `initializeSheets`) if your sheet predates them
 - `migrateAddPuttDistanceColumn` — adds the `PuttDistance` column to
   HoleScores (used for SG: Putting). Existing hole rows are left blank until
   re-entered or edited.
+- `migrateAddYearLockColumn` — adds the `IsLocked` column to Years (used for
+  season locking). Existing seasons default to unlocked.
 
 ### 4. Point the frontend at your API
 
@@ -302,6 +304,15 @@ it's still just a status badge).
 - **Delete Player** is different from removing them from a season — it
   permanently deletes the player and every round they've ever entered,
   across every season. There's no undo.
+- **Lock This Season** / **Unlock This Season**, in the season's Edit panel,
+  blocks players from submitting new rounds into that season — useful at
+  the end of the year to freeze the record before archiving it and moving
+  on. It has no effect on you: from the admin dashboard you can still add,
+  edit, or delete rounds in a locked season same as always (including via
+  **Add Round**, which is how the coach adds a round on a player's behalf).
+  Locking isn't exclusive like "current" — any number of seasons can be
+  locked at once, and locking one doesn't change which season is current.
+  A locked season shows a "Locked" pill next to its name in the season list.
 
 ## Tournament rounds count double toward scoring average
 

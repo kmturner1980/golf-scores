@@ -26,3 +26,9 @@ function requireSession_(session) {
     throw new Error('Session expired. Please log in again.');
   }
 }
+
+/** Non-throwing session check -- true iff `session` is a live admin session. */
+function isValidSession_(session) {
+  if (!session) return false;
+  return CacheService.getScriptCache().get('session_' + session) === 'valid';
+}

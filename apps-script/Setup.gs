@@ -29,8 +29,8 @@ function initializeSheets() {
 
   var years = ss.getSheetByName(SHEET_YEARS) || ss.insertSheet(SHEET_YEARS);
   if (years.getLastRow() === 0) {
-    years.appendRow(['YearID', 'Label', 'IsCurrent', 'CreatedAt']);
-    years.appendRow([Utilities.getUuid(), defaultYearLabel_(), true, new Date()]);
+    years.appendRow(['YearID', 'Label', 'IsCurrent', 'IsLocked', 'CreatedAt']);
+    years.appendRow([Utilities.getUuid(), defaultYearLabel_(), true, false, new Date()]);
   }
 
   var playerYears = ss.getSheetByName(SHEET_PLAYER_YEARS) || ss.insertSheet(SHEET_PLAYER_YEARS);
@@ -152,6 +152,23 @@ function migrateAddPuttDistanceColumn() {
   Logger.log('Added PuttDistance column to HoleScores sheet.');
 }
 
+/**
+ * Run this once if your Years sheet was created before season locking
+ * existed. Safe to run more than once. Existing years default to unlocked.
+ */
+function migrateAddYearLockColumn() {
+  var sheet = getSheet_(SHEET_YEARS);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('IsLocked') !== -1) {
+    Logger.log('IsLocked column already exists -- nothing to do.');
+    return;
+  }
+  var afterCol = headers.indexOf('IsCurrent') + 1;
+  sheet.insertColumnAfter(afterCol);
+  sheet.getRange(1, afterCol + 1).setValue('IsLocked');
+  Logger.log('Added IsLocked column to Years sheet.');
+}
+
 /** "2026-2027"-style default for a brand-new Years sheet, based on today. */
 function defaultYearLabel_() {
   var now = new Date();
@@ -178,11 +195,11 @@ function migrateAddYears() {
 
   if (!years) {
     years = ss.insertSheet(SHEET_YEARS);
-    years.appendRow(['YearID', 'Label', 'IsCurrent', 'CreatedAt']);
+    years.appendRow(['YearID', 'Label', 'IsCurrent', 'IsLocked', 'CreatedAt']);
   }
   if (years.getLastRow() < 2) {
     starterYearId = Utilities.getUuid();
-    years.appendRow([starterYearId, defaultYearLabel_(), true, new Date()]);
+    years.appendRow([starterYearId, defaultYearLabel_(), true, false, new Date()]);
     createdStarterYear = true;
     Logger.log('Created Years sheet with starter year "' + defaultYearLabel_() + '".');
   } else {

@@ -14,6 +14,16 @@ function isCurrentYearRow_(y) {
   return y.IsCurrent === true || y.IsCurrent === 'TRUE' || y.IsCurrent === 'true';
 }
 
+function isYearLockedRow_(y) {
+  return y.IsLocked === true || y.IsLocked === 'TRUE' || y.IsLocked === 'true';
+}
+
+/** Whether the given year is locked -- unknown yearId is treated as unlocked. */
+function isYearLocked_(yearId) {
+  var year = listYears_().filter(function (y) { return y.YearID === yearId; })[0];
+  return !!year && isYearLockedRow_(year);
+}
+
 function getCurrentYear_() {
   var current = listYears_().filter(isCurrentYearRow_)[0];
   if (!current) {
@@ -80,4 +90,21 @@ function setCurrentYear_(yearId) {
   if (rowIdx === -1) throw new Error('Year not found.');
   setAllYearsNotCurrent_();
   sheet.getRange(rowIdx, headers.indexOf('IsCurrent') + 1).setValue(true);
+}
+
+/**
+ * Admin-only: locks or unlocks a season. While locked, players can no longer
+ * submit new rounds into it (submitRound_ enforces this) -- admins are
+ * unaffected either way, since updateRound_/deleteRound_/submitRound_-with-a-
+ * session all already require an admin session regardless of lock state.
+ * Unlike IsCurrent, locking isn't exclusive -- any number of years can be
+ * locked at once.
+ */
+function setYearLocked_(yearId, locked) {
+  if (!yearId) throw new Error('yearId is required.');
+  var sheet = getSheet_(SHEET_YEARS);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var rowIdx = findRowIndexByValue_(sheet, headers, 'YearID', yearId);
+  if (rowIdx === -1) throw new Error('Year not found.');
+  sheet.getRange(rowIdx, headers.indexOf('IsLocked') + 1).setValue(!!locked);
 }

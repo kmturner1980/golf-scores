@@ -2,7 +2,7 @@
   // Pure logic helpers live in assets/js/admin-logic.js (loaded before this
   // file) so they can be unit- and property-tested with no DOM. Destructure
   // them here for use by the season-selection wiring below.
-  const { isCurrentYearRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields, yearListRows, walkStepValidation, collectNewPlayers, buildConfirmSummary } = window.AdminLogic;
+  const { isCurrentYearRow, isYearLockedRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields, yearListRows, walkStepValidation, collectNewPlayers, buildConfirmSummary } = window.AdminLogic;
 
   const els = {
     loginCard: document.getElementById('loginCard'),
@@ -33,6 +33,7 @@
     editYearBack: document.getElementById('editYearBack'),
     editYearMessage: document.getElementById('editYearMessage'),
     editYearMakeCurrentBtn: document.getElementById('editYearMakeCurrentBtn'),
+    editYearLockBtn: document.getElementById('editYearLockBtn'),
     editYearRoster: document.getElementById('editYearRoster'),
     editYearAddExistingMessage: document.getElementById('editYearAddExistingMessage'),
     editYearAddExistingSelect: document.getElementById('editYearAddExistingSelect'),
@@ -799,7 +800,7 @@
     els.yearList.innerHTML = rows.map((row) => `
       <div class="field-row" data-year-row="${escapeHtml(row.yearId)}" style="align-items:center; margin-bottom:0.5rem">
         <div class="field" style="margin-bottom:0; flex:1">
-          ${escapeHtml(row.label)}${row.isCurrent ? ' <span class="pill">Current</span>' : ''}
+          ${escapeHtml(row.label)}${row.isCurrent ? ' <span class="pill">Current</span>' : ''}${row.isLocked ? ' <span class="pill">Locked</span>' : ''}
         </div>
         <div class="field" style="margin-bottom:0">
           <button type="button" class="secondary edit-year" data-year-id="${escapeHtml(row.yearId)}">Edit</button>
@@ -873,6 +874,9 @@
     // Make-current is offered only when the edited season isn't already current
     // (Req 5.3). isCurrentYearRow reads the same flag the season list uses.
     els.editYearMakeCurrentBtn.classList.toggle('hidden', isCurrentYearRow(year));
+    // Lock/unlock is always offered (unlike make-current, locking isn't
+    // exclusive), with the button's label reflecting current state.
+    els.editYearLockBtn.textContent = isYearLockedRow(year) ? 'Unlock This Season' : 'Lock This Season';
     renderEditYearRoster();
     populateEditYearAddExisting();
   }
@@ -1693,7 +1697,10 @@
         }
 
         if (isAdding) {
-          await Api.post(Object.assign({ action: 'submitRound', token: currentPlayerToken }, payload));
+          // session is included so this still works when the target season
+          // is locked -- submitRound_ lets a valid admin session through
+          // regardless of lock state, same as updateRound/deleteRound.
+          await Api.post(Object.assign({ action: 'submitRound', token: currentPlayerToken, session }, payload));
         } else {
           await Api.post(Object.assign({ action: 'updateRound', session, roundId: editingRoundId }, payload));
         }
@@ -1745,6 +1752,26 @@
       // and the roster/candidates reflect the refreshed data.
       openEditYear(yearId);
       els.editYearMessage.innerHTML = '<div class="success">Updated the current season.</div>';
+    } catch (err) {
+      els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  // Lock/unlock the edited season: toggles whether players can still submit
+  // new rounds into it (admins are unaffected either way). Re-opens the panel
+  // afterward so the button label reflects the new state.
+  els.editYearLockBtn.addEventListener('click', async () => {
+    els.editYearMessage.innerHTML = '';
+    if (!editingYearId) return;
+    const yearId = editingYearId;
+    const year = (data.years || []).find((y) => y.YearID === yearId);
+    const nextLocked = !isYearLockedRow(year);
+    try {
+      await UI.withBusy(els.editYearLockBtn, 'Saving…', () =>
+        Api.post({ action: 'setYearLocked', session, yearId, locked: nextLocked }));
+      await refresh();
+      openEditYear(yearId);
+      els.editYearMessage.innerHTML = `<div class="success">Season ${nextLocked ? 'locked' : 'unlocked'}.</div>`;
     } catch (err) {
       els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
     }

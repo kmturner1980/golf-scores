@@ -25,6 +25,12 @@
     return row.IsCurrent === true || row.IsCurrent === 'TRUE' || row.IsCurrent === 'true';
   }
 
+  // Same true/"TRUE"/"true" tolerance as isCurrentYearRow, for the IsLocked flag.
+  function isYearLockedRow(row) {
+    if (!row) return false;
+    return row.IsLocked === true || row.IsLocked === 'TRUE' || row.IsLocked === 'true';
+  }
+
   // Pure precedence resolver for which season the dashboard should view on load.
   // Precedence: a stored id that matches a loaded season -> the current season
   // -> the most-recently-created season -> null (no seasons). No DOM, no
@@ -220,12 +226,14 @@
   // one row per input season (every YearID present once), ordered newest-first
   // by CreatedAt to mirror populateYearSelect's sort. Each row carries its
   // YearID, Label, whether it is the current season (via the supplied `isCurrent`
-  // predicate, defaulting to isCurrentYearRow), and `canMakeCurrent === !isCurrent`
-  // (Make-current is offered for exactly the non-current seasons). A missing/
-  // non-array input yields an empty array. No DOM, no storage.
-  //   years:     array of { YearID, Label, CreatedAt, IsCurrent }
+  // predicate, defaulting to isCurrentYearRow), `canMakeCurrent === !isCurrent`
+  // (Make-current is offered for exactly the non-current seasons), and whether
+  // it's locked (via isYearLockedRow -- locking isn't exclusive like current-
+  // ness, so this doesn't affect canMakeCurrent). A missing/non-array input
+  // yields an empty array. No DOM, no storage.
+  //   years:     array of { YearID, Label, CreatedAt, IsCurrent, IsLocked }
   //   isCurrent: predicate (y) => boolean (reuses isCurrentYearRow)
-  //   -> [{ yearId, label, isCurrent, canMakeCurrent }]  (newest-first)
+  //   -> [{ yearId, label, isCurrent, canMakeCurrent, isLocked }]  (newest-first)
   function yearListRows(years, isCurrent) {
     var list = Array.isArray(years) ? years : [];
     var predicate = typeof isCurrent === 'function' ? isCurrent : isCurrentYearRow;
@@ -240,13 +248,15 @@
           yearId: y.YearID,
           label: y.Label,
           isCurrent: current,                                        // Reqs 4.2, 4.5
-          canMakeCurrent: !current                                   // Reqs 4.4, 5.3
+          canMakeCurrent: !current,                                  // Reqs 4.4, 5.3
+          isLocked: isYearLockedRow(y)
         };
       });
   }
 
   return {
     isCurrentYearRow: isCurrentYearRow,
+    isYearLockedRow: isYearLockedRow,
     resolveViewingYearId: resolveViewingYearId,
     existingPlayerCandidates: existingPlayerCandidates,
     importCandidatesFrom: importCandidatesFrom,

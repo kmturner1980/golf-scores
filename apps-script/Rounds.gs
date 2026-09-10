@@ -53,11 +53,21 @@ function validateRoundPayload_(payload) {
  * or, when payload.entryMode === 'summary', just round totals
  * (summaryPar, summaryScore, summaryHoles, and optionally
  * summaryFairwaysHit/summaryFairwaysAttempted/summaryGIR/summaryPutts/summaryPenalties).
+ * If the target season (payload.yearId, or the current season if omitted) is
+ * locked, payload.session must be a valid admin session or this throws.
  */
 function submitRound_(token, payload) {
   var player = getPlayerByToken_(token);
   if (!player) throw new Error('Invalid player link.');
   validateRoundPayload_(payload);
+
+  // A locked season blocks new player-submitted rounds, but not an admin
+  // acting on a player's behalf (the admin dashboard's "Add Round" sends a
+  // valid session alongside the token for exactly this reason).
+  var targetYearId = payload.yearId || getCurrentYearId_();
+  if (isYearLocked_(targetYearId) && !isValidSession_(payload.session)) {
+    throw new Error('This season is locked and no longer accepting new rounds. Ask your coach if you need to add or change one.');
+  }
 
   var roundId = Utilities.getUuid();
   var fields = roundRowFields_(payload);
@@ -146,7 +156,8 @@ function getPlayerHistory_(token) {
   return {
     player: { name: player.Name },
     rounds: rounds,
-    holeScores: holeScores
+    holeScores: holeScores,
+    yearLocked: isYearLocked_(currentYearId)
   };
 }
 

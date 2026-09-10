@@ -75,6 +75,11 @@ function doPost(e) {
         setCurrentYear_(body.yearId);
         return jsonOut_({ ok: true });
 
+      case 'setYearLocked':
+        requireSession_(body.session);
+        setYearLocked_(body.yearId, body.locked);
+        return jsonOut_({ ok: true });
+
       case 'addPlayerToYear':
         requireSession_(body.session);
         addPlayerToYear_(body.token, body.yearId);
