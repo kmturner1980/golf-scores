@@ -14,3 +14,11 @@ const UI = {
     }
   }
 };
+
+// Browsers step a focused <input type="number"> up/down on mouse-wheel or
+// trackpad scroll, so scrolling the page past a score box silently changes
+// it. Blurring the input first lets the scroll go to the page instead.
+document.addEventListener('wheel', (e) => {
+  const el = document.activeElement;
+  if (el && el.type === 'number' && el === e.target) el.blur();
+}, { passive: true });

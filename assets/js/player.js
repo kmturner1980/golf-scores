@@ -11,6 +11,8 @@
     runningTotal: document.getElementById('runningTotal'),
     form: document.getElementById('roundForm'),
     formMessage: document.getElementById('formMessage'),
+    formHeading: document.getElementById('formHeading'),
+    cancelEditBtn: document.getElementById('cancelEditBtn'),
     yearLockedNotice: document.getElementById('yearLockedNotice'),
     submitBtn: document.getElementById('submitBtn'),
     recentRounds: document.getElementById('recentRounds'),
@@ -53,6 +55,9 @@
   ];
 
   let playerData = null;
+  // RoundID of the round currently loaded into the form for editing, or
+  // null when the form is entering a new round.
+  let editingRoundId = null;
 
   function populateCourseSelect() {
     const sorted = [...IDAHO_COURSES].sort((a, b) => a.name.localeCompare(b.name));
@@ -158,10 +163,10 @@
     return out;
   }
 
-  function renderHoleRows() {
+  function renderHoleRows(existing) {
     const holes = holeRangeFor(els.holesPlayed.value);
     const courseData = selectedCourseData();
-    HoleTable.render(els.holeRows, holes, courseData && courseData.pars ? courseData : null);
+    HoleTable.render(els.holeRows, holes, courseData && courseData.pars ? courseData : null, existing);
     HoleTable.updateRunningTotal(els.holeRows, els.runningTotal);
     els.courseHint.textContent = courseData && courseData.pars
       ? 'Par is filled in automatically for this course.'
@@ -209,18 +214,112 @@
         Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
         Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
       ].filter(Boolean).join(' ');
+      const editCell = playerData && playerData.yearLocked ? '' :
+        `<td><button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button></td>`;
       return `<tr>
         <td>${formatDate(r.Date)} ${badges}</td>
         <td>${escapeHtml(r.Course)}</td>
         <td>${r.HolesPlayed}</td>
         <td>${score == null ? '—' : score} <span class="muted">${diffStr}</span></td>
         <td>${Stats.fmtDiff(scoreDiff)}</td>
+        ${editCell}
       </tr>`;
     }).join('');
     els.recentRounds.innerHTML = `<table>
-      <thead><tr><th>Date</th><th>Course</th><th>Holes</th><th>Score</th><th>Differential</th></tr></thead>
+      <thead><tr><th>Date</th><th>Course</th><th>Holes</th><th>Score</th><th>Differential</th>${playerData && playerData.yearLocked ? '' : '<th></th>'}</tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+    els.recentRounds.querySelectorAll('.edit-round').forEach((btn) => {
+      btn.addEventListener('click', () => openEditRound(btn.dataset.round));
+    });
+  }
+
+  function toDateInputValue(d) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+    return m ? m[0] : '';
+  }
+
+  // Loads one of the player's own rounds back into the entry form so it
+  // can be corrected and re-saved in place.
+  function openEditRound(roundId) {
+    const round = playerData.rounds.find((r) => r.RoundID === roundId);
+    if (!round) return;
+    resetForm();
+    editingRoundId = roundId;
+    els.formHeading.textContent = 'Edit Round';
+    els.submitBtn.textContent = 'Save Changes';
+    els.cancelEditBtn.classList.remove('hidden');
+
+    els.date.value = toDateInputValue(round.Date);
+    els.holesPlayed.value = String(round.HolesPlayed);
+    els.isTournament.checked = Stats.isTournamentRound(round);
+    document.getElementById('notes').value = round.Notes || '';
+
+    const known = IDAHO_COURSES.some((c) => c.name === round.Course);
+    els.courseSelect.value = known ? round.Course : OTHER_COURSE_VALUE;
+    els.courseOther.value = known ? '' : (round.Course || '');
+    els.courseOtherCity.value = '';
+    syncCourseOtherVisibility();
+
+    populateTeeSelect();
+    const tees = (selectedCourseData() || {}).tees || [];
+    const teeIdx = tees.findIndex((t) => t.name === round.Tees);
+    els.teeSelect.value = teeIdx === -1 ? OTHER_TEE_VALUE : String(teeIdx);
+    if (teeIdx === -1) {
+      els.teeOther.value = round.Tees || '';
+      els.courseRating.value = round.CourseRating != null ? round.CourseRating : '';
+      els.slopeRating.value = round.SlopeRating != null ? round.SlopeRating : '';
+    }
+    syncTeeOtherVisibility();
+
+    const summary = Stats.isSummaryRound(round);
+    els.entryModeHoles.checked = !summary;
+    els.entryModeSummary.checked = summary;
+    if (summary) {
+      els.summaryScore.value = round.SummaryScore;
+      els.summaryPar.value = round.SummaryPar;
+      els.summaryPutts.value = round.SummaryPutts;
+      els.summaryGIR.value = round.SummaryGIR;
+      els.summaryFairwaysHit.value = round.SummaryFairwaysHit;
+      els.summaryFairwaysAttempted.value = round.SummaryFairwaysAttempted;
+      els.summaryPenalties.value = round.SummaryPenalties;
+      els.summaryEagles.value = round.SummaryEagles;
+      els.summaryBirdies.value = round.SummaryBirdies;
+      els.summaryPars.value = round.SummaryPars;
+      els.summaryBogeys.value = round.SummaryBogeys;
+      els.summaryDoubles.value = round.SummaryDoubles;
+      els.summaryWorse.value = round.SummaryWorse;
+    }
+
+    const existing = {};
+    (Stats.groupBy(playerData.holeScores, 'RoundID')[roundId] || []).forEach((h) => {
+      existing[Number(h.Hole)] = {
+        par: h.Par,
+        score: h.Score,
+        fairway: h.FairwayHit,
+        gir: h.GIR,
+        putts: h.Putts,
+        penalty: h.Penalties,
+        puttDistance: h.PuttDistance
+      };
+    });
+    renderHoleRows(existing);
+    syncEntryModeVisibility();
+    els.formHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Back to a blank "Enter a Round" form (after submit, or cancelling an edit).
+  function resetForm() {
+    editingRoundId = null;
+    els.formHeading.textContent = 'Enter a Round';
+    els.submitBtn.textContent = 'Submit Round';
+    els.cancelEditBtn.classList.add('hidden');
+    els.form.reset();
+    els.date.value = new Date().toISOString().slice(0, 10);
+    syncCourseOtherVisibility();
+    renderHoleRows();
+    populateTeeSelect();
+    syncEntryModeVisibility();
   }
 
   function formatDate(d) {
@@ -279,6 +378,10 @@
     syncEntryModeVisibility();
   });
   els.teeSelect.addEventListener('change', syncTeeOtherVisibility);
+  els.cancelEditBtn.addEventListener('click', () => {
+    els.formMessage.innerHTML = '';
+    resetForm();
+  });
   els.holeRows.addEventListener('input', (e) => {
     if (e.target.classList.contains('score')) HoleTable.updateRunningTotal(els.holeRows, els.runningTotal);
   });
@@ -289,14 +392,16 @@
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     els.formMessage.innerHTML = '';
+    const wasEditing = !!editingRoundId;
     try {
-      await UI.withBusy(els.submitBtn, 'Submitting…', async () => {
+      await UI.withBusy(els.submitBtn, wasEditing ? 'Saving…' : 'Submitting…', async () => {
         const course = selectedCourseName();
         if (!course) throw new Error('Course is required.');
         const tee = selectedTee();
 
         const payload = {
-          action: 'submitRound',
+          action: wasEditing ? 'updatePlayerRound' : 'submitRound',
+          roundId: editingRoundId || undefined,
           token,
           date: els.date.value,
           course,
@@ -339,13 +444,10 @@
         await Api.post(payload);
       });
 
-      els.formMessage.innerHTML = '<div class="success">Round submitted. Nice work!</div>';
-      els.form.reset();
-      els.date.value = new Date().toISOString().slice(0, 10);
-      syncCourseOtherVisibility();
-      renderHoleRows();
-      populateTeeSelect();
-      syncEntryModeVisibility();
+      els.formMessage.innerHTML = wasEditing
+        ? '<div class="success">Round updated.</div>'
+        : '<div class="success">Round submitted. Nice work!</div>';
+      resetForm();
       playerData = await Api.get({ action: 'getPlayer', token });
       renderStatTiles(playerData.rounds, playerData.holeScores);
       renderRecentRounds(playerData.rounds, playerData.holeScores);

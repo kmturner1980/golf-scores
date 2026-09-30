@@ -26,6 +26,10 @@
 
 * { box-sizing: border-box; }
 
+/* Base size for everything rem-based (text, padding, gaps) -- 15px instead
+   of the browser's 16px, so the whole UI reads a notch more compact. */
+html { font-size: 93.75%; }
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -197,7 +201,7 @@ label {
 
 input, select {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.4rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   font-size: 1rem;
@@ -232,7 +236,7 @@ button {
   color: #ededed;
   border: none;
   border-radius: var(--radius-button);
-  padding: 0.65rem 1.3rem;
+  padding: 0.55rem 1.1rem;
   font-size: 0.8rem;
   font-family: inherit;
   font-weight: 600;
@@ -824,4 +828,11 @@ th.clickable:hover { color: var(--navy); }
     right: 1rem;
     min-width: 0;
   }
+}
+
+/* iOS Safari zooms the page when focusing a form control under 16px, so keep
+   inputs at 16px on phones even though the base size is smaller. */
+@media (max-width: 640px) {
+  input, select,
+  .hole-table input, .hole-table select { font-size: 16px; }
 }

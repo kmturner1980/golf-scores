@@ -39,6 +39,9 @@ function doPost(e) {
       case 'submitRound':
         return jsonOut_(submitRound_(body.token, body));
 
+      case 'updatePlayerRound':
+        return jsonOut_(updatePlayerRound_(body.token, body.roundId, body));
+
       case 'adminLogin':
         return jsonOut_({ session: adminLogin_(body.password) });
 

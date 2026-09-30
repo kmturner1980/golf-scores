@@ -83,6 +83,15 @@ function submitRound_(token, payload) {
   return { roundId: roundId };
 }
 
+// 'Y' = hit; the rest are miss directions. 'N' is a directionless miss,
+// kept for rounds entered before directions were tracked.
+var FAIRWAY_VALUES_ = ['Y', 'L', 'R', 'LONG', 'SHORT', 'N'];
+
+function normalizeFairway_(v) {
+  var val = (v || '').toString().trim().toUpperCase();
+  return FAIRWAY_VALUES_.indexOf(val) === -1 ? 'N' : val;
+}
+
 /** Shared by submitRound_ and updateRound_: validates and appends hole rows for a round. */
 function appendHoleScores_(roundId, holes) {
   holes.forEach(function (h) {
@@ -96,7 +105,7 @@ function appendHoleScores_(roundId, holes) {
       Hole: Number(h.hole),
       Par: par,
       Score: score,
-      FairwayHit: par === 3 ? 'NA' : (h.fairway || 'N'),
+      FairwayHit: par === 3 ? 'NA' : normalizeFairway_(h.fairway),
       GIR: h.gir || 'N',
       Putts: h.putts === '' || h.putts == null ? '' : Number(h.putts),
       Penalties: h.penalty === '' || h.penalty == null ? 0 : Number(h.penalty),
@@ -131,6 +140,30 @@ function updateRound_(roundId, payload) {
   if (!isSummaryPayload_(payload)) {
     appendHoleScores_(roundId, payload.holes);
   }
+}
+
+/**
+ * Player-side edit of one of their own rounds. The round must belong to
+ * `token`, and it stays in the season it was entered in. Same lock rule as
+ * submitRound_: a locked season rejects player edits unless payload.session
+ * is a valid admin session.
+ */
+function updatePlayerRound_(token, roundId, payload) {
+  var player = getPlayerByToken_(token);
+  if (!player) throw new Error('Invalid player link.');
+  if (!roundId) throw new Error('roundId is required.');
+
+  var round = sheetToObjects_(SHEET_ROUNDS).filter(function (r) {
+    return r.RoundID === roundId;
+  })[0];
+  if (!round || round.PlayerToken !== token) throw new Error('Round not found.');
+  if (isYearLocked_(round.Year) && !isValidSession_(payload.session)) {
+    throw new Error('This season is locked and rounds can no longer be changed. Ask your coach if you need to fix one.');
+  }
+
+  payload.yearId = round.Year;
+  updateRound_(roundId, payload);
+  return { roundId: roundId };
 }
 
 /**

@@ -246,7 +246,8 @@ const Stats = {
     holeRows.forEach((h) => {
       const par = Number(h.Par);
       if (par !== 4 && par !== 5) return;
-      if (h.FairwayHit !== 'Y' && h.FairwayHit !== 'N') return;
+      // 'Y' is a hit; any miss direction (or legacy plain 'N') is a miss.
+      if (!h.FairwayHit || h.FairwayHit === 'NA') return;
       const teeYards = Stats.holeYardage(Number(h.Hole), par, courseData, round.Tees);
       const drive = h.FairwayHit === 'Y' ? DRIVE_DISTANCE_BY_LIE.hit : DRIVE_DISTANCE_BY_LIE.miss;
       const remaining = Math.max(teeYards - drive, 20);

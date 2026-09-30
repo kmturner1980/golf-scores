@@ -176,10 +176,21 @@ course with no verified tees) reveals manual Tee Name / Course Rating /
 Slope Rating fields instead — rating and slope are optional everywhere, but
 a round without them can't get a score differential (see below).
 
-Par 3s never have a fairway to hit: the Fairway Hit/Miss control is hidden
+The Fairway control records the tee-shot result on par 4s and 5s: **Hit**,
+or the miss direction (**Left**, **Right**, **Long**, **Short**). It
+defaults to Hit. Every miss direction counts as a missed fairway for
+Fairway % and SG: Off the Tee. Rounds entered before miss directions
+existed keep their plain "Miss" value.
+
+Par 3s never have a fairway to hit: the Fairway control is hidden
 entirely (not just grayed out) for any hole marked par 3, on both the entry
 form and the admin editor, and those holes are excluded from the Fairway %
 calculation.
+
+Players can edit their own rounds: each row in **Recent Rounds** on the
+player page has an **Edit** button that loads the round back into the entry
+form, and saving updates the round in place. The round stays in the season
+it was entered in. Editing is turned off once that season is locked.
 
 ## Score differential
 
@@ -197,7 +208,7 @@ same as they do for average score.
 
 ## Data tracked per round
 
-For each hole: par, score, fairway hit (skipped for par 3s), green in
+For each hole: par, score, fairway result (hit or miss direction; skipped for par 3s), green in
 regulation, putts, penalty strokes, and an optional first-putt distance
 bucket (0-3/3-10/10-20/20-30/30-50/50+ ft).
 
@@ -305,7 +316,8 @@ it's still just a status badge).
   permanently deletes the player and every round they've ever entered,
   across every season. There's no undo.
 - **Lock This Season** / **Unlock This Season**, in the season's Edit panel,
-  blocks players from submitting new rounds into that season — useful at
+  blocks players from submitting new rounds into that season, or editing
+  their existing ones — useful at
   the end of the year to freeze the record before archiving it and moving
   on. It has no effect on you: from the admin dashboard you can still add,
   edit, or delete rounds in a locked season same as always (including via

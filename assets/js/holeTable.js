@@ -12,6 +12,19 @@ const PUTT_DISTANCE_OPTIONS = [
   { value: '50+', label: '50+ ft' }
 ];
 
+// Tee-shot result on a par 4/5. Anything other than 'Y' counts as a missed
+// fairway for Fairway % and SG: Off the Tee; the direction is recorded so a
+// player (or coach) can see which way the misses tend to go.
+const FAIRWAY_OPTIONS = [
+  { value: 'Y', label: 'Hit' },
+  { value: 'L', label: 'Left' },
+  { value: 'R', label: 'Right' },
+  { value: 'LONG', label: 'Long' },
+  { value: 'SHORT', label: 'Short' }
+];
+// Rounds entered before miss directions existed stored a plain 'N'.
+const LEGACY_FAIRWAY_MISS = { value: 'N', label: 'Miss' };
+
 // Renders the editable hole-by-hole score table used on both the player
 // entry form and the admin round-editor. Shared so the "par is locked when
 // we know the real course, editable otherwise" behavior only lives in one
@@ -31,7 +44,10 @@ const HoleTable = {
       const ex = existing && existing[h];
       const par = locked ? courseData.pars[h - 1] : (ex ? ex.par : 4);
       const isPar3 = Number(par) === 3;
-      const fairwayVal = ex ? ex.fairway : 'N';
+      const fairwayVal = ex && ex.fairway && ex.fairway !== 'NA' ? ex.fairway : 'Y';
+      const fairwayOptions = fairwayVal === LEGACY_FAIRWAY_MISS.value
+        ? [...FAIRWAY_OPTIONS, LEGACY_FAIRWAY_MISS]
+        : FAIRWAY_OPTIONS;
       const girVal = ex ? ex.gir : 'N';
       const puttDistanceVal = ex && ex.puttDistance != null ? ex.puttDistance : '';
       return `
@@ -41,8 +57,7 @@ const HoleTable = {
         <td data-label="Score"><input type="number" class="score" min="1" max="20" value="${ex && ex.score != null ? ex.score : ''}" required style="width:4.5em"></td>
         <td data-label="Fairway">
           <select class="fairway" ${isPar3 ? 'disabled style="display:none"' : ''}>
-            <option value="Y" ${fairwayVal === 'Y' ? 'selected' : ''}>Hit</option>
-            <option value="N" ${fairwayVal !== 'Y' ? 'selected' : ''}>Miss</option>
+            ${fairwayOptions.map((o) => `<option value="${o.value}" ${fairwayVal === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
           </select>
           <span class="fairway-na muted" style="${isPar3 ? '' : 'display:none'}">—</span>
         </td>
@@ -78,7 +93,7 @@ const HoleTable = {
     });
   },
 
-  // Par-3 holes don't have a fairway to hit -- hide the Hit/Miss control
+  // Par-3 holes don't have a fairway to hit -- hide the fairway control
   // entirely (not just disable it) and show a "—" in its place.
   syncFairwayVisibility(tbody) {
     tbody.querySelectorAll('tr').forEach((tr) => {
