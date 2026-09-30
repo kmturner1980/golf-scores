@@ -93,6 +93,11 @@ function doPost(e) {
         removePlayerFromYear_(body.token, body.yearId);
         return jsonOut_({ ok: true });
 
+      case 'removePlayersFromYear':
+        requireSession_(body.session);
+        removePlayersFromYear_(body.tokens, body.yearId);
+        return jsonOut_({ ok: true });
+
       default:
         throw new Error('Unknown or missing action.');
     }
@@ -106,6 +111,9 @@ function doPost(e) {
  * so `status` is informational only — callers should check body.error.
  */
 function jsonOut_(obj, status) {
+  // Commit any pending sheet writes before responding, so the page's
+  // follow-up reload can't read the sheet as it was before this change.
+  SpreadsheetApp.flush();
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);

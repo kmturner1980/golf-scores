@@ -35,6 +35,8 @@
     editYearMakeCurrentBtn: document.getElementById('editYearMakeCurrentBtn'),
     editYearLockBtn: document.getElementById('editYearLockBtn'),
     editYearRoster: document.getElementById('editYearRoster'),
+    editYearRosterActions: document.getElementById('editYearRosterActions'),
+    editYearRemoveSelectedBtn: document.getElementById('editYearRemoveSelectedBtn'),
     editYearAddExistingMessage: document.getElementById('editYearAddExistingMessage'),
     editYearAddExistingSelect: document.getElementById('editYearAddExistingSelect'),
     editYearAddExistingBtn: document.getElementById('editYearAddExistingBtn'),
@@ -892,47 +894,83 @@
     renderYearList();
   }
 
-  // Render the roster of the EDITED season (editingYearId) with a per-player
-  // Remove control (Reqs 5.4, 5.5). Mirrors the player-view removeFromYearBtn
-  // confirm/shape but scoped to editingYearId, not selectedYearId.
+  // Render the roster of the EDITED season (editingYearId) as a checklist:
+  // tick one or more players, then "Remove Selected" takes them all off
+  // this season in one request (Reqs 5.4, 5.5).
   function renderEditYearRoster() {
     const players = rosterPlayersForYear(editingYearId);
+    els.editYearRosterActions.classList.toggle('hidden', !players.length);
     if (!players.length) {
       els.editYearRoster.innerHTML = '<p class="muted">No players rostered for this season yet.</p>';
       return;
     }
-    els.editYearRoster.innerHTML = players.map((p) => `
-      <div class="field-row" style="align-items:center; margin-bottom:0.5rem">
-        <div class="field" style="margin-bottom:0; flex:1">${escapeHtml(p.Name)}</div>
-        <div class="field" style="margin-bottom:0">
-          <button type="button" class="secondary edit-year-remove" data-token="${escapeHtml(p.Token)}">Remove</button>
-        </div>
-      </div>
-    `).join('');
-
-    els.editYearRoster.querySelectorAll('.edit-year-remove').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        els.editYearMessage.innerHTML = '';
-        const token = btn.dataset.token;
-        const player = data.players.find((p) => p.Token === token);
-        const year = (data.years || []).find((y) => y.YearID === editingYearId);
-        const name = player ? player.Name : 'this player';
-        const yearLabel = (year && year.Label) || 'this season';
-        if (!confirm(`Remove ${name} from ${yearLabel}? Their rounds and history are kept -- they just won't show up for this season anymore. You can re-add them later.`)) return;
-        try {
-          await UI.withBusy(btn, 'Removing…', () =>
-            Api.post({ action: 'removePlayerFromYear', session, token, yearId: editingYearId }));
-          await refresh();
-          // The removed player is now an add-existing candidate again, so
-          // re-render both the roster and the add-existing dropdown.
-          renderEditYearRoster();
-          populateEditYearAddExisting();
-        } catch (err) {
-          els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-        }
-      });
+    els.editYearRoster.innerHTML = `
+      <label class="checkbox-row" style="font-weight:600">
+        <input type="checkbox" id="editYearSelectAll"> Select all
+      </label>
+      ${players.map((p) => `
+      <label class="checkbox-row">
+        <input type="checkbox" class="edit-year-pick" value="${escapeHtml(p.Token)}"> ${escapeHtml(p.Name)}
+      </label>`).join('')}
+    `;
+    const selectAll = document.getElementById('editYearSelectAll');
+    const picks = () => Array.from(els.editYearRoster.querySelectorAll('.edit-year-pick'));
+    selectAll.addEventListener('change', () => {
+      picks().forEach((cb) => { cb.checked = selectAll.checked; });
+      syncEditYearRemoveSelected();
     });
+    picks().forEach((cb) => cb.addEventListener('change', syncEditYearRemoveSelected));
+    syncEditYearRemoveSelected();
   }
+
+  function selectedEditYearTokens() {
+    return Array.from(els.editYearRoster.querySelectorAll('.edit-year-pick:checked')).map((cb) => cb.value);
+  }
+
+  // Keeps the Remove Selected button's count/disabled state and the
+  // Select-all box in step with the individual checkboxes.
+  function syncEditYearRemoveSelected() {
+    const all = els.editYearRoster.querySelectorAll('.edit-year-pick');
+    const count = selectedEditYearTokens().length;
+    const selectAll = document.getElementById('editYearSelectAll');
+    if (selectAll) {
+      selectAll.checked = all.length > 0 && count === all.length;
+      selectAll.indeterminate = count > 0 && count < all.length;
+    }
+    els.editYearRemoveSelectedBtn.disabled = count === 0;
+    els.editYearRemoveSelectedBtn.textContent = count ? `Remove Selected (${count})` : 'Remove Selected';
+  }
+
+  els.editYearRemoveSelectedBtn.addEventListener('click', async () => {
+    els.editYearMessage.innerHTML = '';
+    const tokens = selectedEditYearTokens();
+    if (!tokens.length) return;
+    const year = (data.years || []).find((y) => y.YearID === editingYearId);
+    const yearLabel = (year && year.Label) || 'this season';
+    const names = tokens.map((t) => (data.players.find((p) => p.Token === t) || {}).Name || 'Unknown player');
+    const who = names.length === 1 ? names[0] : `these ${names.length} players:\n\n${names.join('\n')}\n\n`;
+    if (!confirm(`Remove ${who} from ${yearLabel}? Their rounds and history are kept -- they just won't show up for this season anymore. You can re-add them later.`)) return;
+    try {
+      await UI.withBusy(els.editYearRemoveSelectedBtn, 'Removing…', () =>
+        Api.post({ action: 'removePlayersFromYear', session, tokens, yearId: editingYearId }));
+      await refresh();
+      // The server has confirmed the removal, so drop those rows from the
+      // reloaded data too -- the roster must not show them even if the
+      // reload came back a moment stale.
+      const removed = new Set(tokens);
+      data.playerYears = data.playerYears.filter((py) => !(py.YearID === editingYearId && removed.has(py.PlayerToken)));
+      renderTeamTiles();
+      renderRoster();
+      // The removed players are add-existing candidates again, so re-render
+      // both the roster and the add-existing dropdown.
+      renderEditYearRoster();
+      populateEditYearAddExisting();
+      const summary = names.length === 1 ? names[0] : `${names.length} players`;
+      els.editYearMessage.innerHTML = `<div class="success">Removed ${escapeHtml(summary)} from ${escapeHtml(yearLabel)}.</div>`;
+    } catch (err) {
+      els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    }
+  });
 
   // Populate the Edit-Year "Add Existing Player" dropdown with the global
   // players NOT rostered to the EDITED season (Req 5.6). Scoped to

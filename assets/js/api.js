@@ -10,7 +10,9 @@ const Api = {
         url.searchParams.set(k, params[k]);
       }
     });
-    const res = await fetch(url.toString());
+    // no-store: data changes after every save, so the browser must never
+    // hand back an earlier copy (e.g. a roster from before a removal).
+    const res = await fetch(url.toString(), { cache: 'no-store' });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     return data;
