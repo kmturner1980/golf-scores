@@ -198,6 +198,22 @@ const IDAHO_COURSES = [
     yardageSource: 'https://www.opengolfapi.org/'
   },
   {
+    name: 'Osprey Meadows at Tamarack Resort', city: 'Donnelly',
+    pars: [5,3,5,3,4,3,5,4,4,5,3,4,4,4,3,5,5,4],
+    source: 'https://www.opengolfapi.org/',
+    // Ratings are the men's rating/slope for each tee, except Bunny Rabbit,
+    // which only has a women's rating on file.
+    tees: [
+      { name: 'Double Black Diamond', rating: 74.6, slope: 142, yardages: [575,173,560,264,413,204,562,397,422,564,189,445,450,377,199,611,546,496] },
+      { name: 'Black Diamond', rating: 71.9, slope: 136, yardages: [516,150,514,207,377,163,531,352,422,528,134,404,405,343,193,535,505,442] },
+      { name: 'Blue Square', rating: 67.6, slope: 130, yardages: [426,121,456,176,347,135,505,316,369,437,100,330,374,321,174,491,474,404] },
+      { name: 'Green Circle', rating: 64.1, slope: 114, yardages: [396,90,402,98,264,111,452,260,304,404,74,282,342,270,113,481,403,361] },
+      { name: 'Bunny Rabbit', rating: 63.0, slope: 106, yardages: [290,90,271,98,170,111,245,160,177,265,74,174,190,152,113,275,294,172] }
+    ],
+    teeSource: 'https://www.opengolfapi.org/',
+    yardageSource: 'https://www.opengolfapi.org/'
+  },
+  {
     name: 'Whitetail Golf Club', city: 'McCall',
     pars: [4,5,3,5,4,3,4,4,4,4,4,5,4,3,5,3,4,4],
     source: 'https://www.opengolfapi.org/',
