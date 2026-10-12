@@ -14,6 +14,8 @@
     formHeading: document.getElementById('formHeading'),
     cancelEditBtn: document.getElementById('cancelEditBtn'),
     yearLockedNotice: document.getElementById('yearLockedNotice'),
+    seasonCard: document.getElementById('seasonCard'),
+    seasonSelect: document.getElementById('seasonSelect'),
     submitBtn: document.getElementById('submitBtn'),
     recentRounds: document.getElementById('recentRounds'),
     date: document.getElementById('date'),
@@ -58,6 +60,52 @@
   // RoundID of the round currently loaded into the form for editing, or
   // null when the form is entering a new round.
   let editingRoundId = null;
+  // YearID of the season picked in the Season dropdown. Stats, Recent
+  // Rounds, and new submissions are all scoped to it.
+  let selectedSeasonId = null;
+
+  function selectedSeason() {
+    return (playerData.seasons || []).find((s) => s.yearId === selectedSeasonId) || null;
+  }
+
+  // The `!playerData.seasons` branches cover an older Apps Script deployment
+  // that only returns the current season (with a single `yearLocked` flag).
+  function isSelectedSeasonLocked() {
+    if (!playerData.seasons) return !!playerData.yearLocked;
+    const season = selectedSeason();
+    return !!(season && season.isLocked);
+  }
+
+  function seasonRounds() {
+    if (!playerData.seasons) return playerData.rounds;
+    return playerData.rounds.filter((r) => r.Year === selectedSeasonId);
+  }
+
+  // Defaults to the newest open season, so a player on more than one open
+  // season (e.g. junior high and high school) lands on the latest one.
+  function populateSeasonSelect() {
+    const seasons = playerData.seasons || [];
+    els.seasonSelect.innerHTML = seasons.map((s) =>
+      `<option value="${escapeHtml(s.yearId)}">${escapeHtml(s.label)}${s.isLocked ? ' (Locked)' : ''}</option>`).join('');
+    if (!seasons.some((s) => s.yearId === selectedSeasonId)) {
+      const open = seasons.find((s) => !s.isLocked);
+      selectedSeasonId = (open || seasons[0] || {}).yearId || null;
+    }
+    els.seasonSelect.value = selectedSeasonId || '';
+    els.seasonCard.classList.toggle('hidden', seasons.length < 2);
+  }
+
+  function renderSeason() {
+    const rounds = seasonRounds();
+    renderStatTiles(rounds, playerData.holeScores);
+    renderRecentRounds(rounds, playerData.holeScores);
+    // A locked season blocks new submissions server-side regardless, but
+    // hiding the form instead of letting someone fill it out and fail at
+    // the end is much less frustrating.
+    const locked = isSelectedSeasonLocked();
+    els.form.classList.toggle('hidden', locked);
+    els.yearLockedNotice.classList.toggle('hidden', !locked);
+  }
 
   function populateCourseSelect() {
     const sorted = [...IDAHO_COURSES].sort((a, b) => a.name.localeCompare(b.name));
@@ -214,7 +262,7 @@
         Stats.isTournamentRound(r) ? '<span class="pill">Tournament</span>' : '',
         Stats.isSummaryRound(r) ? '<span class="pill">Totals</span>' : ''
       ].filter(Boolean).join(' ');
-      const editCell = playerData && playerData.yearLocked ? '' :
+      const editCell = isSelectedSeasonLocked() ? '' :
         `<td><button type="button" class="secondary edit-round" data-round="${escapeHtml(r.RoundID)}">Edit</button></td>`;
       return `<tr>
         <td>${formatDate(r.Date)} ${badges}</td>
@@ -226,7 +274,7 @@
       </tr>`;
     }).join('');
     els.recentRounds.innerHTML = `<table>
-      <thead><tr><th>Date</th><th>Course</th><th>Holes</th><th>Score</th><th>Differential</th>${playerData && playerData.yearLocked ? '' : '<th></th>'}</tr></thead>
+      <thead><tr><th>Date</th><th>Course</th><th>Holes</th><th>Score</th><th>Differential</th>${isSelectedSeasonLocked() ? '' : '<th></th>'}</tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
     els.recentRounds.querySelectorAll('.edit-round').forEach((btn) => {
@@ -346,21 +394,14 @@
       playerData = await Api.get({ action: 'getPlayer', token });
       els.heading.textContent = playerData.player.name;
       els.subheading.textContent = 'Enter your round scores below';
-      renderStatTiles(playerData.rounds, playerData.holeScores);
-      renderRecentRounds(playerData.rounds, playerData.holeScores);
+      populateSeasonSelect();
+      renderSeason();
       els.content.classList.remove('hidden');
-      // A locked season blocks new submissions server-side regardless, but
-      // hiding the form instead of letting someone fill it out and fail at
-      // the end is much less frustrating.
-      els.form.classList.toggle('hidden', !!playerData.yearLocked);
-      els.yearLockedNotice.classList.toggle('hidden', !playerData.yearLocked);
-      if (!playerData.yearLocked) {
-        els.date.value = new Date().toISOString().slice(0, 10);
-        populateCourseSelect();
-        populateTeeSelect();
-        renderHoleRows();
-        syncEntryModeVisibility();
-      }
+      els.date.value = new Date().toISOString().slice(0, 10);
+      populateCourseSelect();
+      populateTeeSelect();
+      renderHoleRows();
+      syncEntryModeVisibility();
     } catch (err) {
       els.loadError.textContent = err.message;
       els.loadError.classList.remove('hidden');
@@ -378,6 +419,13 @@
     syncEntryModeVisibility();
   });
   els.teeSelect.addEventListener('change', syncTeeOtherVisibility);
+  els.seasonSelect.addEventListener('change', () => {
+    selectedSeasonId = els.seasonSelect.value;
+    els.formMessage.innerHTML = '';
+    // A round being edited belongs to the season it came from.
+    if (editingRoundId) resetForm();
+    renderSeason();
+  });
   els.cancelEditBtn.addEventListener('click', () => {
     els.formMessage.innerHTML = '';
     resetForm();
@@ -402,6 +450,8 @@
         const payload = {
           action: wasEditing ? 'updatePlayerRound' : 'submitRound',
           roundId: editingRoundId || undefined,
+          // Ignored for edits -- a round stays in the season it was entered in.
+          yearId: selectedSeasonId || undefined,
           token,
           date: els.date.value,
           course,
@@ -448,9 +498,10 @@
         ? '<div class="success">Round updated.</div>'
         : '<div class="success">Round submitted. Nice work!</div>';
       resetForm();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       playerData = await Api.get({ action: 'getPlayer', token });
-      renderStatTiles(playerData.rounds, playerData.holeScores);
-      renderRecentRounds(playerData.rounds, playerData.holeScores);
+      populateSeasonSelect();
+      renderSeason();
     } catch (err) {
       els.formMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
     }

@@ -53,20 +53,26 @@ function validateRoundPayload_(payload) {
  * or, when payload.entryMode === 'summary', just round totals
  * (summaryPar, summaryScore, summaryHoles, and optionally
  * summaryFairwaysHit/summaryFairwaysAttempted/summaryGIR/summaryPutts/summaryPenalties).
- * If the target season (payload.yearId, or the current season if omitted) is
- * locked, payload.session must be a valid admin session or this throws.
+ * The target season is payload.yearId, or the current season if omitted.
+ * Unless payload.session is a valid admin session, the player must be
+ * rostered for that season and it must not be locked.
  */
 function submitRound_(token, payload) {
   var player = getPlayerByToken_(token);
   if (!player) throw new Error('Invalid player link.');
   validateRoundPayload_(payload);
 
-  // A locked season blocks new player-submitted rounds, but not an admin
+  // A locked season blocks new player-submitted rounds, and a player can
+  // only submit into a season they're on -- but neither applies to an admin
   // acting on a player's behalf (the admin dashboard's "Add Round" sends a
   // valid session alongside the token for exactly this reason).
   var targetYearId = payload.yearId || getCurrentYearId_();
-  if (isYearLocked_(targetYearId) && !isValidSession_(payload.session)) {
-    throw new Error('This season is locked and no longer accepting new rounds. Ask your coach if you need to add or change one.');
+  if (!isValidSession_(payload.session)) {
+    var season = playerSeasons_(token).filter(function (s) { return s.yearId === targetYearId; })[0];
+    if (!season) throw new Error('You aren\'t on the roster for that season.');
+    if (season.isLocked) {
+      throw new Error('This season is locked and no longer accepting new rounds. Ask your coach if you need to add or change one.');
+    }
   }
 
   var roundId = Utilities.getUuid();
@@ -167,17 +173,39 @@ function updatePlayerRound_(token, roundId, payload) {
 }
 
 /**
- * Everything needed to render one player's own history (used by player.html).
- * Scoped to the current year only -- players don't pick a season, so their
- * own dashboard always reflects whichever one the admin has marked current.
+ * The seasons a player can see on their own page: every season they're
+ * rostered for, newest first. Several can be open (unlocked) at once, e.g. a
+ * junior high and a high school season. A player on no roster at all falls
+ * back to the current season so their link still works.
+ */
+function playerSeasons_(token) {
+  var rostered = {};
+  listPlayerYears_().forEach(function (py) {
+    if (py.PlayerToken === token) rostered[py.YearID] = true;
+  });
+  var years = listYears_();
+  var seasons = years.filter(function (y) { return rostered[y.YearID]; });
+  if (!seasons.length) seasons = years.filter(isCurrentYearRow_);
+  // Years are appended as they're created, so reversed sheet order is newest first.
+  return seasons.reverse().map(function (y) {
+    return { yearId: y.YearID, label: y.Label, isLocked: isYearLockedRow_(y) };
+  });
+}
+
+/**
+ * Everything needed to render one player's own history (used by player.html),
+ * across every season in playerSeasons_ -- the page lets the player switch
+ * between them and filters rounds by Year client-side.
  */
 function getPlayerHistory_(token) {
   var player = getPlayerByToken_(token);
   if (!player) throw new Error('Invalid player link.');
 
-  var currentYearId = getCurrentYearId_();
+  var seasons = playerSeasons_(token);
+  var seasonIds = {};
+  seasons.forEach(function (s) { seasonIds[s.yearId] = true; });
   var rounds = sheetToObjects_(SHEET_ROUNDS).filter(function (r) {
-    return r.PlayerToken === token && r.Year === currentYearId;
+    return r.PlayerToken === token && seasonIds[r.Year];
   });
   var roundIds = {};
   rounds.forEach(function (r) { roundIds[r.RoundID] = true; });
@@ -190,7 +218,7 @@ function getPlayerHistory_(token) {
     player: { name: player.Name },
     rounds: rounds,
     holeScores: holeScores,
-    yearLocked: isYearLocked_(currentYearId)
+    seasons: seasons
   };
 }
 

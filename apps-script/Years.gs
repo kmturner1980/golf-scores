@@ -1,9 +1,9 @@
 /**
  * Seasons/years. The roster (Players) is shared across every year -- only
- * Rounds are tagged to one. Every round submission resolves to "the current
- * year" unless a specific yearId is passed (the admin round editor does
- * this so backfilling/correcting a past season's round doesn't silently
- * move it to whatever's current).
+ * Rounds are tagged to one. Any number of seasons can be open (unlocked) at
+ * once; players pick which of their seasons a round goes into, and the admin
+ * round editor picks one too. "Current" is just the admin dashboard's
+ * default season, and the fallback when a submission doesn't name one.
  */
 
 function listYears_() {
@@ -81,7 +81,7 @@ function createYear_(label, playerTokens) {
   return { yearId: yearId, label: label };
 }
 
-/** Admin-only: switches which year new player-submitted rounds go into. */
+/** Admin-only: switches which season the admin dashboard defaults to. */
 function setCurrentYear_(yearId) {
   if (!yearId) throw new Error('yearId is required.');
   var sheet = getSheet_(SHEET_YEARS);

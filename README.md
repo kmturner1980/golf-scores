@@ -294,9 +294,16 @@ work: they just aren't carried into the new season, rather than being
 hidden by some Active/Inactive flag (Active/Inactive is unrelated to this —
 it's still just a status badge).
 
+- **More than one season can be open at a time** — e.g. a junior high and
+  a high school season side by side. A player's link shows every season
+  they're rostered for, with a **Season** picker at the top of their page
+  (hidden if they're only on one). It defaults to their newest unlocked
+  season. Stats and Recent Rounds follow the picked season, and new rounds
+  go into it. Players can still view a locked season; they just can't add
+  or edit rounds in it.
 - **Viewing Year** switches which season's roster and rounds the rest of
-  the dashboard reflects. It doesn't change where new rounds/players go —
-  that's controlled by whichever season is marked "(Current)".
+  the dashboard reflects. The season marked "(Current)" is just the one the
+  dashboard opens to by default — it no longer decides what players see.
 - **Create New Season** adds a new one, immediately makes it current, and
   **carries forward the roster** from whatever was current before — every
   player rostered for the old season is automatically rostered for the new
@@ -305,8 +312,8 @@ it's still just a status badge).
   page — it only unrosters them for that one season; their name, link, and
   full history are untouched, and you can re-add them to a season later
   from **Add Existing Player to This Season**.
-- **Make This the Current Season** lets you switch which season is current
-  without creating a new one (e.g. to go back to backfilling last season).
+- **Make This the Current Season** changes which season the dashboard
+  opens to by default.
 - **Add Player** rosters a brand-new player onto whichever season you're
   currently viewing.
 - The admin round editor has its own **Season** field so you can add or
@@ -324,6 +331,7 @@ it's still just a status badge).
   **Add Round**, which is how the coach adds a round on a player's behalf).
   Locking isn't exclusive like "current" — any number of seasons can be
   locked at once, and locking one doesn't change which season is current.
+  Players can still pick a locked season on their page to look back at it.
   A locked season shows a "Locked" pill next to its name in the season list.
 
 ## Tournament rounds count double toward scoring average
