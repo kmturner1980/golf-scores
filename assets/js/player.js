@@ -102,15 +102,22 @@
     // A locked season blocks new submissions server-side regardless, but
     // hiding the form instead of letting someone fill it out and fail at
     // the end is much less frustrating.
+    const noSeason = !!playerData.seasons && !playerData.seasons.length;
     const locked = isSelectedSeasonLocked();
-    els.form.classList.toggle('hidden', locked);
-    els.yearLockedNotice.classList.toggle('hidden', !locked);
+    els.form.classList.toggle('hidden', locked || noSeason);
+    els.yearLockedNotice.textContent = noSeason
+      ? 'You aren’t on a season roster yet — ask your coach to add you.'
+      : 'This season is locked for new entries — ask your coach if you need to add or change a round.';
+    els.yearLockedNotice.classList.toggle('hidden', !locked && !noSeason);
   }
 
   function populateCourseSelect() {
     const sorted = [...IDAHO_COURSES].sort((a, b) => a.name.localeCompare(b.name));
     const options = sorted.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.city)})</option>`);
-    els.courseSelect.innerHTML = options.join('') +
+    // Starts blank (the select is `required`) so a round can't be posted to
+    // whichever course happens to sort first. `selected` makes form.reset()
+    // come back to it too.
+    els.courseSelect.innerHTML = `<option value="" disabled selected>Select a course…</option>` + options.join('') +
       `<option value="${OTHER_COURSE_VALUE}">Other / not listed (enter manually)</option>`;
     syncCourseOtherVisibility();
   }
@@ -140,6 +147,11 @@
   // Repopulates the Tees dropdown from the currently selected course's
   // verified tee list (if any). Always keeps an "Other / manual" option.
   function populateTeeSelect() {
+    if (!els.courseSelect.value) {
+      els.teeSelect.innerHTML = '<option value="" disabled selected>Select a course first</option>';
+      syncTeeOtherVisibility();
+      return;
+    }
     const courseData = selectedCourseData();
     const tees = (courseData && courseData.tees) || [];
     const options = tees.map((t, i) =>
@@ -393,6 +405,7 @@
     try {
       playerData = await Api.get({ action: 'getPlayer', token });
       els.heading.textContent = playerData.player.name;
+      document.title = `${playerData.player.name} — Information`;
       els.subheading.textContent = 'Enter your round scores below';
       populateSeasonSelect();
       renderSeason();

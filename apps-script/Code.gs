@@ -45,6 +45,10 @@ function doPost(e) {
       case 'adminLogin':
         return jsonOut_({ session: adminLogin_(body.password) });
 
+      case 'adminLogout':
+        adminLogout_(body.session);
+        return jsonOut_({ ok: true });
+
       case 'addPlayer':
         requireSession_(body.session);
         return jsonOut_(addPlayer_(body.name, body.sex, body.yearId));
@@ -72,11 +76,6 @@ function doPost(e) {
       case 'createYear':
         requireSession_(body.session);
         return jsonOut_(createYear_(body.label, body.playerTokens));
-
-      case 'setCurrentYear':
-        requireSession_(body.session);
-        setCurrentYear_(body.yearId);
-        return jsonOut_({ ok: true });
 
       case 'setYearLocked':
         requireSession_(body.session);

@@ -19,6 +19,11 @@ function adminLogin_(password) {
   return session;
 }
 
+/** Ends a session early. Unknown or already-expired sessions are a no-op. */
+function adminLogout_(session) {
+  if (session) CacheService.getScriptCache().remove('session_' + session);
+}
+
 function requireSession_(session) {
   if (!session) throw new Error('Not authorized. Please log in.');
   var cached = CacheService.getScriptCache().get('session_' + session);

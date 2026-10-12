@@ -2,16 +2,12 @@
  * Seasons/years. The roster (Players) is shared across every year -- only
  * Rounds are tagged to one. Any number of seasons can be open (unlocked) at
  * once; players pick which of their seasons a round goes into, and the admin
- * round editor picks one too. "Current" is just the admin dashboard's
- * default season, and the fallback when a submission doesn't name one.
+ * round editor picks one too. (Older sheets may still have an IsCurrent
+ * column from before this -- it's ignored.)
  */
 
 function listYears_() {
   return sheetToObjects_(SHEET_YEARS);
-}
-
-function isCurrentYearRow_(y) {
-  return y.IsCurrent === true || y.IsCurrent === 'TRUE' || y.IsCurrent === 'true';
 }
 
 function isYearLockedRow_(y) {
@@ -24,31 +20,8 @@ function isYearLocked_(yearId) {
   return !!year && isYearLockedRow_(year);
 }
 
-function getCurrentYear_() {
-  var current = listYears_().filter(isCurrentYearRow_)[0];
-  if (!current) {
-    throw new Error('No current year is set. Run migrateAddYears() from the Apps Script editor, or create one from the admin dashboard.');
-  }
-  return current;
-}
-
-function getCurrentYearId_() {
-  return getCurrentYear_().YearID;
-}
-
-function setAllYearsNotCurrent_() {
-  var sheet = getSheet_(SHEET_YEARS);
-  var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return;
-  var headers = values[0];
-  var col = headers.indexOf('IsCurrent') + 1;
-  for (var i = 1; i < values.length; i++) {
-    if (values[i][col - 1]) sheet.getRange(i + 1, col).setValue(false);
-  }
-}
-
 /**
- * Admin-only: creates a new year, makes it the current one, and rosters only
+ * Admin-only: creates a new (unlocked) year and rosters only
  * the players the admin selected (via playerTokens) onto the new season. An
  * empty or omitted token list rosters nobody -> the season starts empty. This
  * replaces the old unconditional full carry-forward of the previous roster.
@@ -61,12 +34,10 @@ function createYear_(label, playerTokens) {
     throw new Error('A year called "' + label + '" already exists.');
   }
 
-  setAllYearsNotCurrent_();
   var yearId = Utilities.getUuid();
   appendObject_(SHEET_YEARS, {
     YearID: yearId,
     Label: label,
-    IsCurrent: true,
     CreatedAt: new Date()
   });
 
@@ -81,24 +52,12 @@ function createYear_(label, playerTokens) {
   return { yearId: yearId, label: label };
 }
 
-/** Admin-only: switches which season the admin dashboard defaults to. */
-function setCurrentYear_(yearId) {
-  if (!yearId) throw new Error('yearId is required.');
-  var sheet = getSheet_(SHEET_YEARS);
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var rowIdx = findRowIndexByValue_(sheet, headers, 'YearID', yearId);
-  if (rowIdx === -1) throw new Error('Year not found.');
-  setAllYearsNotCurrent_();
-  sheet.getRange(rowIdx, headers.indexOf('IsCurrent') + 1).setValue(true);
-}
-
 /**
  * Admin-only: locks or unlocks a season. While locked, players can no longer
  * submit new rounds into it (submitRound_ enforces this) -- admins are
  * unaffected either way, since updateRound_/deleteRound_/submitRound_-with-a-
  * session all already require an admin session regardless of lock state.
- * Unlike IsCurrent, locking isn't exclusive -- any number of years can be
- * locked at once.
+ * Any number of years can be locked at once.
  */
 function setYearLocked_(yearId, locked) {
   if (!yearId) throw new Error('yearId is required.');

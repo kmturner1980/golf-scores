@@ -311,7 +311,7 @@ function importSeed2026() {
   Logger.log('Imported ' + count + ' rounds for ' + PLAYER_NAMES.length + ' players into year ' + YEAR_LABEL + '.');
 }
 
-/** Reuses a year with this exact label if one exists; otherwise creates it (and makes it current). */
+/** Reuses a year with this exact label if one exists; otherwise creates it. */
 function findOrCreateSeedYear_(label) {
   var existing = listYears_().filter(function (y) { return y.Label === label; })[0];
   if (existing) return existing.YearID;

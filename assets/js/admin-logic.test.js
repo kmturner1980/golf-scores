@@ -20,7 +20,6 @@
     throw new Error('AdminLogic module not available');
   }
 
-  var isCurrentYearRow = AdminLogic.isCurrentYearRow;
   var isYearLockedRow = AdminLogic.isYearLockedRow;
   var resolveViewingYearId = AdminLogic.resolveViewingYearId;
   var existingPlayerCandidates = AdminLogic.existingPlayerCandidates;
@@ -88,13 +87,13 @@
   }
 
   // ---- Season-list generator (shared by Property 1 and Property 2) -------
-  // Produces arrays of { YearID, Label, CreatedAt, IsCurrent } with:
+  // Produces arrays of { YearID, Label, CreatedAt, IsLocked } with:
   //  * random YearIDs (unique within a list),
   //  * random CreatedAt timestamps INCLUDING ties (drawn from a small pool),
-  //  * zero / one / many current rows, encoded as boolean true, "TRUE", "true",
+  //  * zero / some / all locked rows, encoded as boolean true, "TRUE", "true",
   //  * plus the empty-list case.
-  var CURRENT_TRUE_ENCODINGS = [true, 'TRUE', 'true'];
-  var CURRENT_FALSE_ENCODINGS = [false, undefined, 'FALSE', 'no', 0, null];
+  var FLAG_TRUE_ENCODINGS = [true, 'TRUE', 'true'];
+  var FLAG_FALSE_ENCODINGS = [false, undefined, 'FALSE', 'no', 0, null];
 
   function genSeasonList() {
     var len = randInt(0, 6); // includes the empty-list case (len === 0)
@@ -111,14 +110,12 @@
       } while (usedIds[id]);
       usedIds[id] = true;
 
-      var isCurrentTrue = rand() < 0.4; // ~40% chance of being current-ish
-      var isLockedTrue = rand() < 0.4; // ~40% chance of being locked-ish
+      var isLockedTrue = rand() < 0.5; // ~50% chance of being locked-ish
       var row = {
         YearID: id,
         Label: 'Season ' + id,
         CreatedAt: new Date(pick(tsPool)).toISOString(),
-        IsCurrent: isCurrentTrue ? pick(CURRENT_TRUE_ENCODINGS) : pick(CURRENT_FALSE_ENCODINGS),
-        IsLocked: isLockedTrue ? pick(CURRENT_TRUE_ENCODINGS) : pick(CURRENT_FALSE_ENCODINGS)
+        IsLocked: isLockedTrue ? pick(FLAG_TRUE_ENCODINGS) : pick(FLAG_FALSE_ENCODINGS)
       };
       list.push(row);
     }
@@ -149,12 +146,11 @@
     if (storedId && list.some(function (y) { return y.YearID === storedId; })) {
       return storedId;
     }
-    var current = list.find(isCurrentYearRow);
-    if (current) return current.YearID;
-    var newest = list.slice().sort(function (a, b) {
+    var newestFirst = list.slice().sort(function (a, b) {
       return new Date(b.CreatedAt) - new Date(a.CreatedAt);
-    })[0];
-    return newest ? newest.YearID : null;
+    });
+    var open = newestFirst.find(function (y) { return !isYearLockedRow(y); });
+    return (open || newestFirst[0]).YearID;
   }
 
   // =========================================================================
@@ -164,11 +160,11 @@
   // ---- TASK 1.2 ----------------------------------------------------------
   // Feature: admin-season-settings, Property 1: Season selection honors precedence
   // Validates: Requirements 3.2, 3.3, 3.4, 3.6
-  test('Property 1: season selection honors the stored->current->newest->null precedence', function () {
+  test('Property 1: season selection honors the stored->newest open->newest->null precedence', function () {
     for (var i = 0; i < PROP_ITERATIONS; i++) {
       var list = genSeasonList();
       var storedId = genStoredId(list);
-      var actual = resolveViewingYearId(list, storedId, isCurrentYearRow);
+      var actual = resolveViewingYearId(list, storedId);
       var expected = expectedResolution(list, storedId);
       assertEqual(
         actual,
@@ -182,20 +178,18 @@
       } else if (storedId && list.some(function (y) { return y.YearID === storedId; })) {
         assertEqual(actual, storedId, 'a matching stored id must win');
       } else {
-        var current = list.find(isCurrentYearRow);
-        if (current) {
-          assertEqual(actual, current.YearID, 'current season must win when no stored match');
-        } else {
-          // No stored match, no current: must be a newest-by-CreatedAt id.
-          var maxTs = Math.max.apply(null, list.map(function (y) { return new Date(y.CreatedAt).getTime(); }));
-          var resolvedRow = list.find(function (y) { return y.YearID === actual; });
-          assert(!!resolvedRow, 'resolved id must be in the list');
-          assertEqual(
-            new Date(resolvedRow.CreatedAt).getTime(),
-            maxTs,
-            'resolved season must have the most recent CreatedAt when falling through to newest'
-          );
-        }
+        // No stored match: the newest unlocked season if any, else the newest.
+        var open = list.filter(function (y) { return !isYearLockedRow(y); });
+        var pool = open.length ? open : list;
+        var maxTs = Math.max.apply(null, pool.map(function (y) { return new Date(y.CreatedAt).getTime(); }));
+        var resolvedRow = list.find(function (y) { return y.YearID === actual; });
+        assert(!!resolvedRow, 'resolved id must be in the list');
+        assertEqual(isYearLockedRow(resolvedRow), !open.length, 'an unlocked season must win when one exists');
+        assertEqual(
+          new Date(resolvedRow.CreatedAt).getTime(),
+          maxTs,
+          'resolved season must be the most recently created of its pool'
+        );
       }
     }
   });
@@ -207,7 +201,7 @@
     for (var i = 0; i < PROP_ITERATIONS; i++) {
       var list = genSeasonList();
       var storedId = genStoredId(list);
-      var result = resolveViewingYearId(list, storedId, isCurrentYearRow);
+      var result = resolveViewingYearId(list, storedId);
 
       if (list.length === 0) {
         assertEqual(result, null, 'empty list must return null');
@@ -430,20 +424,6 @@
   });
 
   // ---- TASK 1.5: unit / example tests ------------------------------------
-  test('isCurrentYearRow accepts true, "TRUE", "true"', function () {
-    assertEqual(isCurrentYearRow({ IsCurrent: true }), true, 'boolean true accepted');
-    assertEqual(isCurrentYearRow({ IsCurrent: 'TRUE' }), true, '"TRUE" accepted');
-    assertEqual(isCurrentYearRow({ IsCurrent: 'true' }), true, '"true" accepted');
-  });
-
-  test('isCurrentYearRow rejects false and undefined', function () {
-    assertEqual(isCurrentYearRow({ IsCurrent: false }), false, 'false rejected');
-    assertEqual(isCurrentYearRow({ IsCurrent: undefined }), false, 'undefined rejected');
-    assertEqual(isCurrentYearRow({}), false, 'missing IsCurrent rejected');
-    assertEqual(isCurrentYearRow(null), false, 'null row rejected');
-    assertEqual(isCurrentYearRow(undefined), false, 'undefined row rejected');
-  });
-
   test('isYearLockedRow accepts true, "TRUE", "true"', function () {
     assertEqual(isYearLockedRow({ IsLocked: true }), true, 'boolean true accepted');
     assertEqual(isYearLockedRow({ IsLocked: 'TRUE' }), true, '"TRUE" accepted');
@@ -981,8 +961,8 @@
   // Validates: Requirements 4.1, 4.2
   test('Property 1: yearListRows preserves every YearID exactly once, newest-first by CreatedAt', function () {
     for (var i = 0; i < PROP_ITERATIONS; i++) {
-      var years = genSeasonList(); // reused generator (varied CreatedAt incl. ties, IsCurrent encodings, empty)
-      var rows = yearListRows(years, isCurrentYearRow);
+      var years = genSeasonList(); // reused generator (varied CreatedAt incl. ties, IsLocked encodings, empty)
+      var rows = yearListRows(years);
 
       // 1. Output length === input length.
       assertEqual(rows.length, years.length, 'row count must equal season count');
@@ -1014,25 +994,13 @@
     }
   });
 
-  // Feature: admin-year-management-nav, Property 2: Make-current visibility is exactly the non-current seasons
-  // Validates: Requirements 4.2, 4.4, 4.5, 5.3
-  test('Property 2: each row isCurrent matches the predicate and canMakeCurrent === !isCurrent', function () {
+  test('Property 2: each row isLocked matches isYearLockedRow', function () {
     for (var i = 0; i < PROP_ITERATIONS; i++) {
       var years = genSeasonList();
-      var rows = yearListRows(years, isCurrentYearRow);
+      var rows = yearListRows(years);
 
       rows.forEach(function (r) {
         var y = years.find((function (id) { return function (yy) { return yy.YearID === id; }; })(r.yearId));
-        assertEqual(
-          r.isCurrent,
-          isCurrentYearRow(y),
-          'row.isCurrent must match isCurrentYearRow(matchingYear) for ' + JSON.stringify(y)
-        );
-        assertEqual(
-          r.canMakeCurrent,
-          !r.isCurrent,
-          'canMakeCurrent must be exactly the negation of isCurrent'
-        );
         assertEqual(
           r.isLocked,
           isYearLockedRow(y),
@@ -1043,9 +1011,9 @@
   });
 
   test('Property 1/2 boundary: empty season list yields an empty array', function () {
-    assertEqual(JSON.stringify(yearListRows([], isCurrentYearRow)), '[]', 'empty list -> []');
-    assertEqual(JSON.stringify(yearListRows(null, isCurrentYearRow)), '[]', 'null -> []');
-    assertEqual(JSON.stringify(yearListRows(undefined, isCurrentYearRow)), '[]', 'undefined -> []');
+    assertEqual(JSON.stringify(yearListRows([])), '[]', 'empty list -> []');
+    assertEqual(JSON.stringify(yearListRows(null)), '[]', 'null -> []');
+    assertEqual(JSON.stringify(yearListRows(undefined)), '[]', 'undefined -> []');
   });
 
   // ---- Summary -----------------------------------------------------------

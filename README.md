@@ -56,8 +56,7 @@ when you've done that. This is almost always the fix for this exact error.
 2. In the function dropdown at the top, select `initializeSheets`, then
    click **Run**. The first run will prompt you to authorize the script —
    accept it. This creates the `Players`, `Rounds`, `HoleScores`, `Years`,
-   and `PlayerYears` tabs (with one starter season already created and
-   marked current).
+   and `PlayerYears` tabs (with one starter season already created).
 3. Temporarily edit the last line of `Setup.gs` area to call
    `setAdminPassword('YourPasswordHere')` — easiest way: select
    `setAdminPassword` in the function dropdown, and since Apps Script can't
@@ -96,7 +95,7 @@ dropdown (same way you ran `initializeSheets`) if your sheet predates them
 - `migrateAddRatingColumns` — adds the `CourseRating`/`SlopeRating` columns
   to Rounds (used for score differential; applies to both entry modes).
 - `migrateAddYears` — creates the `Years` tab with one starter season
-  (marked current) if it doesn't exist, adds the `Year` column to Rounds,
+  if it doesn't exist, adds the `Year` column to Rounds,
   and backfills any of your existing rounds onto that starter season so
   they don't disappear from view once year filtering is live.
 - `migrateAddPlayerYears` — creates the `PlayerYears` tab (which players are
@@ -301,19 +300,20 @@ it's still just a status badge).
   season. Stats and Recent Rounds follow the picked season, and new rounds
   go into it. Players can still view a locked season; they just can't add
   or edit rounds in it.
+- There's no "current" season — every unlocked season is open. (If your
+  `Years` sheet still has an `IsCurrent` column from before, it's ignored
+  and safe to delete.)
 - **Viewing Year** switches which season's roster and rounds the rest of
-  the dashboard reflects. The season marked "(Current)" is just the one the
-  dashboard opens to by default — it no longer decides what players see.
-- **Create New Season** adds a new one, immediately makes it current, and
-  **carries forward the roster** from whatever was current before — every
-  player rostered for the old season is automatically rostered for the new
-  one too. From there, remove the exceptions (graduating seniors, players
-  who aren't returning) via **Remove from Season** on their player detail
-  page — it only unrosters them for that one season; their name, link, and
-  full history are untouched, and you can re-add them to a season later
+  the dashboard reflects. The dashboard remembers the last season you
+  viewed; otherwise it opens to the newest unlocked season.
+- **Add New Year** walks you through creating one. Its **Copy players
+  from** step lets you pick any existing season (it defaults to the one
+  you're viewing) and check which of its players to carry over — e.g. last
+  year's high school roster minus the graduating seniors. You can also add
+  brand-new players, or start the season empty. Later, **Remove from
+  Season** on a player's detail page unrosters them for just that season;
+  their name, link, and full history are untouched, and you can re-add them
   from **Add Existing Player to This Season**.
-- **Make This the Current Season** changes which season the dashboard
-  opens to by default.
 - **Add Player** rosters a brand-new player onto whichever season you're
   currently viewing.
 - The admin round editor has its own **Season** field so you can add or
@@ -329,9 +329,8 @@ it's still just a status badge).
   on. It has no effect on you: from the admin dashboard you can still add,
   edit, or delete rounds in a locked season same as always (including via
   **Add Round**, which is how the coach adds a round on a player's behalf).
-  Locking isn't exclusive like "current" — any number of seasons can be
-  locked at once, and locking one doesn't change which season is current.
-  Players can still pick a locked season on their page to look back at it.
+  Any number of seasons can be locked at once. Players can still pick a
+  locked season on their page to look back at it.
   A locked season shows a "Locked" pill next to its name in the season list.
 
 ## Tournament rounds count double toward scoring average

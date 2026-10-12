@@ -29,8 +29,8 @@ function initializeSheets() {
 
   var years = ss.getSheetByName(SHEET_YEARS) || ss.insertSheet(SHEET_YEARS);
   if (years.getLastRow() === 0) {
-    years.appendRow(['YearID', 'Label', 'IsCurrent', 'IsLocked', 'CreatedAt']);
-    years.appendRow([Utilities.getUuid(), defaultYearLabel_(), true, false, new Date()]);
+    years.appendRow(['YearID', 'Label', 'IsLocked', 'CreatedAt']);
+    years.appendRow([Utilities.getUuid(), defaultYearLabel_(), false, new Date()]);
   }
 
   var playerYears = ss.getSheetByName(SHEET_PLAYER_YEARS) || ss.insertSheet(SHEET_PLAYER_YEARS);
@@ -163,7 +163,7 @@ function migrateAddYearLockColumn() {
     Logger.log('IsLocked column already exists -- nothing to do.');
     return;
   }
-  var afterCol = headers.indexOf('IsCurrent') + 1;
+  var afterCol = headers.indexOf('Label') + 1;
   sheet.insertColumnAfter(afterCol);
   sheet.getRange(1, afterCol + 1).setValue('IsLocked');
   Logger.log('Added IsLocked column to Years sheet.');
@@ -182,7 +182,7 @@ function defaultYearLabel_() {
 /**
  * Run this once if your spreadsheet was created before year/season
  * tracking existed. Safe to run more than once. Creates the Years sheet
- * with one starter year (marked current) if it doesn't exist, adds the
+ * with one starter year if it doesn't exist, adds the
  * `Year` column to Rounds if missing, and backfills any existing rounds
  * with no Year onto that starter year -- otherwise they'd silently vanish
  * from every year-filtered view.
@@ -195,11 +195,11 @@ function migrateAddYears() {
 
   if (!years) {
     years = ss.insertSheet(SHEET_YEARS);
-    years.appendRow(['YearID', 'Label', 'IsCurrent', 'IsLocked', 'CreatedAt']);
+    years.appendRow(['YearID', 'Label', 'IsLocked', 'CreatedAt']);
   }
   if (years.getLastRow() < 2) {
     starterYearId = Utilities.getUuid();
-    years.appendRow([starterYearId, defaultYearLabel_(), true, false, new Date()]);
+    years.appendRow([starterYearId, defaultYearLabel_(), false, new Date()]);
     createdStarterYear = true;
     Logger.log('Created Years sheet with starter year "' + defaultYearLabel_() + '".');
   } else {

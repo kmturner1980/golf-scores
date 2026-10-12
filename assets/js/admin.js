@@ -2,7 +2,7 @@
   // Pure logic helpers live in assets/js/admin-logic.js (loaded before this
   // file) so they can be unit- and property-tested with no DOM. Destructure
   // them here for use by the season-selection wiring below.
-  const { isCurrentYearRow, isYearLockedRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields, yearListRows, walkStepValidation, collectNewPlayers, buildConfirmSummary } = window.AdminLogic;
+  const { isYearLockedRow, resolveViewingYearId, existingPlayerCandidates, importCandidatesFrom, roundCardFields, yearListRows, walkStepValidation, collectNewPlayers, buildConfirmSummary } = window.AdminLogic;
 
   const els = {
     loginCard: document.getElementById('loginCard'),
@@ -16,6 +16,7 @@
     menuPanel: document.getElementById('menuPanel'),
     menuDashboard: document.getElementById('menuDashboard'),
     menuYearMgmt: document.getElementById('menuYearMgmt'),
+    menuLogout: document.getElementById('menuLogout'),
     // Year Management full-screen view (Tasks 5.x). #editYear / #yearWalk are
     // hidden sub-panels reset on close so a fresh open starts on the list;
     // their inner controls are wired by Tasks 6.x / 8.x.
@@ -32,7 +33,6 @@
     editYearHeading: document.getElementById('editYearHeading'),
     editYearBack: document.getElementById('editYearBack'),
     editYearMessage: document.getElementById('editYearMessage'),
-    editYearMakeCurrentBtn: document.getElementById('editYearMakeCurrentBtn'),
     editYearLockBtn: document.getElementById('editYearLockBtn'),
     editYearRoster: document.getElementById('editYearRoster'),
     editYearRosterActions: document.getElementById('editYearRosterActions'),
@@ -61,6 +61,7 @@
     walkStep4: document.getElementById('walkStep4'),
     walkLabel: document.getElementById('walkLabel'),
     walkReturningList: document.getElementById('walkReturningList'),
+    walkImportFrom: document.getElementById('walkImportFrom'),
     walkNewPlayers: document.getElementById('walkNewPlayers'),
     walkAddPlayerRow: document.getElementById('walkAddPlayerRow'),
     walkReview: document.getElementById('walkReview'),
@@ -162,7 +163,7 @@
   // The Add-Year walkthrough model (Tasks 8.x). null when the walkthrough is
   // not active; reset to a fresh object by startYearWalk(). Shape mirrors the
   // design's walkthrough State model:
-  //   { step:1, label:'', returningTokens:[], newPlayers:[{name,sex}], result:null }
+  //   { step:1, label:'', importFromYearId, returningTokens:[], newPlayers:[{name,sex}], result:null }
   // Steps 2 and 3 are skippable; confirmation is gated only by a valid label
   // (via AdminLogic.walkStepValidation). Lives entirely inside #yearWalk, an
   // in-view sub-panel of Year Management -- no history entry is pushed for step
@@ -215,12 +216,9 @@
     return data.players.filter((p) => tokens.has(p.Token));
   }
 
-  // `isCurrentYearRow` is now provided by AdminLogic (destructured at the top
-  // of this IIFE); the previous local copy was removed to avoid duplication.
-
   // Repopulates the Season selector from data.years. Resolves the initial
   // selection from persisted state via resolveViewingYearId, following the
-  // stored -> current -> newest -> null precedence chain (Reqs 3.2-3.4, 3.6).
+  // stored -> newest open -> newest -> null precedence chain (Reqs 3.2-3.4, 3.6).
   function populateYearSelect() {
     // A stale Apps Script deployment (one that predates season support)
     // returns no `years` key at all, and a freshly-migrated-but-empty sheet
@@ -236,23 +234,23 @@
     }
     const sorted = [...years].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
     els.yearSelect.innerHTML = sorted.map((y) =>
-      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
+      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isYearLockedRow(y) ? ' (Locked)' : ''}</option>`
     ).join('');
     // Read the last-viewed season once and resolve the initial selection via the
-    // pure precedence resolver: stored -> current -> newest -> null (Reqs 3.2-3.4,
+    // pure precedence resolver: stored -> newest open -> newest -> null (Reqs 3.2-3.4,
     // 3.6). The resolver never returns an id absent from `years`.
     const storedId = Store.readViewingYearId();
-    selectedYearId = resolveViewingYearId(data.years, storedId, isCurrentYearRow);
+    selectedYearId = resolveViewingYearId(data.years, storedId);
     els.yearSelect.value = selectedYearId || '';
     // If the persisted read failed, `storageOk` flipped false during the
     // readViewingYearId() call above and the resolver already fell back to
-    // current/newest -- load is never blocked. Surface a non-blocking notice
+    // the newest season -- load is never blocked. Surface a non-blocking notice
     // so the user understands why their last-viewed season wasn't restored
     // (Req 3.7). Only shown when seasons exist (the empty-state message owns
     // #yearMessage otherwise, and that path returns before reaching here).
     if (!storageOk && (data.years || []).length) {
       els.yearMessage.innerHTML =
-        '<div class="muted">Couldn\u2019t restore your last-viewed season; showing the current season.</div>';
+        '<div class="muted">Couldn\u2019t restore your last-viewed season; showing the newest open season.</div>';
     }
   }
 
@@ -262,7 +260,7 @@
   function populateEditYearSelect(yearId) {
     const sorted = [...(data.years || [])].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
     els.editYearSelect.innerHTML = sorted.map((y) =>
-      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isCurrentYearRow(y) ? ' (Current)' : ''}</option>`
+      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isYearLockedRow(y) ? ' (Locked)' : ''}</option>`
     ).join('');
     els.editYearSelect.value = yearId || selectedYearId || '';
   }
@@ -277,10 +275,11 @@
   function populateCourseSelect(selectEl, selected) {
     const sorted = [...IDAHO_COURSES].sort((a, b) => a.name.localeCompare(b.name));
     const options = sorted.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.city)})</option>`);
-    selectEl.innerHTML = options.join('') +
+    selectEl.innerHTML = `<option value="" disabled selected>Select a course…</option>` + options.join('') +
       `<option value="${OTHER_COURSE_VALUE}">Other / not listed (enter manually)</option>`;
-    // Omit `selected` (e.g. adding a brand-new round) to leave the browser's
-    // natural first-option default in place, same as the player entry form.
+    // Omit `selected` (e.g. adding a brand-new round) to leave the blank
+    // placeholder chosen -- the select is `required`, so a round can't be
+    // posted to whichever course happens to sort first. Same as the player form.
     if (selected !== undefined) {
       const match = sorted.find((c) => c.name === selected);
       selectEl.value = match ? selected : OTHER_COURSE_VALUE;
@@ -297,8 +296,14 @@
   // Repopulates the Tees dropdown from the currently selected course's
   // verified tee list. `selectTeeName`, if given, preselects the tee that
   // matches by name (used when opening an existing round for editing);
-  // otherwise leaves the browser's natural first-option default.
+  // otherwise leaves the browser's natural first-option default. With no
+  // course picked yet, shows only a placeholder.
   function populateEditTeeSelect(selectTeeName) {
+    if (!els.editCourseSelect.value) {
+      els.editTeeSelect.innerHTML = '<option value="" disabled selected>Select a course first</option>';
+      syncEditTeeOtherVisibility();
+      return;
+    }
     const courseData = editSelectedCourseData();
     const tees = (courseData && courseData.tees) || [];
     const options = tees.map((t, i) =>
@@ -790,11 +795,10 @@
   }
 
   // Render the season list into #yearList from the pure yearListRows view model
-  // (newest-first, canMakeCurrent === !isCurrent). Each row shows the label, a
-  // "(Current)" marker, an Edit control, and a Make-current control only for
-  // non-current seasons (Reqs 4.1-4.7).
+  // (newest-first). Each row shows the label, a "Locked" marker, and an Edit
+  // control (Reqs 4.1-4.7).
   function renderYearList() {
-    const rows = yearListRows(data.years, isCurrentYearRow);
+    const rows = yearListRows(data.years);
     if (!rows.length) {
       els.yearList.innerHTML = '<p class="muted">No seasons yet.</p>';
       return;
@@ -802,35 +806,13 @@
     els.yearList.innerHTML = rows.map((row) => `
       <div class="field-row" data-year-row="${escapeHtml(row.yearId)}" style="align-items:center; margin-bottom:0.5rem">
         <div class="field" style="margin-bottom:0; flex:1">
-          ${escapeHtml(row.label)}${row.isCurrent ? ' <span class="pill">Current</span>' : ''}${row.isLocked ? ' <span class="pill">Locked</span>' : ''}
+          ${escapeHtml(row.label)}${row.isLocked ? ' <span class="pill">Locked</span>' : ''}
         </div>
         <div class="field" style="margin-bottom:0">
           <button type="button" class="secondary edit-year" data-year-id="${escapeHtml(row.yearId)}">Edit</button>
         </div>
-        ${row.canMakeCurrent ? `
-        <div class="field" style="margin-bottom:0">
-          <button type="button" class="make-current-year" data-year-id="${escapeHtml(row.yearId)}">Make current</button>
-        </div>` : ''}
       </div>
     `).join('');
-
-    // Make-current: target this row's YearID, then refresh and re-render the
-    // list (Req 4.6).
-    els.yearList.querySelectorAll('.make-current-year').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        els.yearMgmtMessage.innerHTML = '';
-        const yearId = btn.dataset.yearId;
-        try {
-          await UI.withBusy(btn, 'Saving…', () =>
-            Api.post({ action: 'setCurrentYear', session, yearId }));
-          await refresh();
-          renderYearList();
-          els.yearMgmtMessage.innerHTML = '<div class="success">Updated the current season.</div>';
-        } catch (err) {
-          els.yearMgmtMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-        }
-      });
-    });
 
     // Edit: opens the Edit-Year panel scoped to this row's YearID. openEditYear
     // is provided by Task 6.1; guard so this list-level rendering lands
@@ -873,11 +855,8 @@
     els.editYearAddExistingMessage.innerHTML = '';
     els.editYearAddPlayerMessage.innerHTML = '';
     els.editYearNewLinkBox.classList.add('hidden');
-    // Make-current is offered only when the edited season isn't already current
-    // (Req 5.3). isCurrentYearRow reads the same flag the season list uses.
-    els.editYearMakeCurrentBtn.classList.toggle('hidden', isCurrentYearRow(year));
-    // Lock/unlock is always offered (unlike make-current, locking isn't
-    // exclusive), with the button's label reflecting current state.
+    // Lock/unlock is always offered, with the button's label reflecting the
+    // season's current state.
     els.editYearLockBtn.textContent = isYearLockedRow(year) ? 'Unlock This Season' : 'Lock This Season';
     renderEditYearRoster();
     populateEditYearAddExisting();
@@ -885,7 +864,7 @@
 
   // Return from the Edit-Year panel to the season list, in-view (no history
   // change, Req 5.1/5.2). Re-render the list so any changes made while editing
-  // (e.g. a made-current season) are reflected.
+  // (e.g. a newly locked season) are reflected.
   function closeEditYear() {
     els.editYear.classList.add('hidden');
     els.yearList.classList.remove('hidden');
@@ -995,7 +974,7 @@
   function startYearWalk() {
     // Fresh model on every launch so a previous run's label/selections never
     // leak into a new season (Req 6.1).
-    walk = { step: 1, label: '', returningTokens: [], newPlayers: [], result: null };
+    walk = { step: 1, label: '', importFromYearId: selectedYearId, returningTokens: [], newPlayers: [], result: null };
     // Focus the walkthrough within the Year Management view: hide the season
     // list + Add-New-Year control (and any open edit panel) so the walkthrough
     // reads as the sole content. closeWalkAndShowList() reverses this.
@@ -1009,7 +988,7 @@
 
   // Leave the walkthrough and return to the season list, in-view (no history
   // change -- mirrors closeEditYear). Re-render the list so a newly created
-  // current season is reflected.
+  // season is reflected.
   function closeWalkAndShowList() {
     els.yearWalk.classList.add('hidden');
     els.yearList.classList.remove('hidden');
@@ -1079,15 +1058,19 @@
     renderWalkStep();
   }
 
-  // Step 2 (returning players, skippable): render an all-optional checklist of
-  // the CURRENT season's roster as import candidates, reflecting any tokens
-  // already chosen. Checkbox changes update walk.returningTokens live. When
-  // there's no current season or it has no roster, show a muted empty message
-  // (Reqs 6.4, 6.5).
+  // Step 2 (returning players, skippable): pick a season to copy players from
+  // (defaults to the one the dashboard is viewing), then render an all-optional
+  // checklist of its roster, reflecting any tokens already chosen. Checkbox
+  // changes update walk.returningTokens live. When that season has no roster,
+  // show a muted empty message (Reqs 6.4, 6.5).
   function renderWalkStep2() {
-    const currentYear = (data.years || []).find(isCurrentYearRow);
-    const candidates = currentYear
-      ? importCandidatesFrom(data.players, data.playerYears, currentYear.YearID)
+    const sorted = [...(data.years || [])].sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
+    els.walkImportFrom.innerHTML = sorted.map((y) =>
+      `<option value="${escapeHtml(y.YearID)}">${escapeHtml(y.Label)}${isYearLockedRow(y) ? ' (Locked)' : ''}</option>`
+    ).join('');
+    els.walkImportFrom.value = walk.importFromYearId || '';
+    const candidates = walk.importFromYearId
+      ? importCandidatesFrom(data.players, data.playerYears, walk.importFromYearId)
       : [];
     if (!candidates.length) {
       els.walkReturningList.innerHTML = '<p class="muted">No previous players to import.</p>';
@@ -1530,7 +1513,7 @@
     renderTeamTiles();
     renderRoster();
     // If the Year Management view is open during a refresh (e.g. after a
-    // make-current or edit-year mutation), re-render the season list so it
+    // lock or edit-year mutation), re-render the season list so it
     // stays coherent with the freshly-loaded data. The Edit-Year and
     // walkthrough handlers re-render their own sub-regions.
     if (yearMgmtOpen) renderYearList();
@@ -1541,6 +1524,7 @@
   async function showDashboard() {
     els.loginCard.classList.add('hidden');
     els.dashboard.classList.remove('hidden');
+    els.menuLogout.classList.remove('hidden');
     // adminData reads five sheets and is cold-start-prone (often several
     // seconds), so show a loading state instead of a frozen-looking blank
     // dashboard. Everything below goes through refresh() -> loadData().
@@ -1775,26 +1759,6 @@
   // Back to the season list (in-view, no history change, Req 5.1).
   els.editYearBack.addEventListener('click', () => closeEditYear());
 
-  // Make the edited season current (Req 5.3): setCurrentYear{editingYearId},
-  // then refresh and re-open the panel so the now-current season hides its
-  // Make-current button.
-  els.editYearMakeCurrentBtn.addEventListener('click', async () => {
-    els.editYearMessage.innerHTML = '';
-    if (!editingYearId) return;
-    const yearId = editingYearId;
-    try {
-      await UI.withBusy(els.editYearMakeCurrentBtn, 'Saving…', () =>
-        Api.post({ action: 'setCurrentYear', session, yearId }));
-      await refresh();
-      // Re-open the panel for the same season so the make-current button hides
-      // and the roster/candidates reflect the refreshed data.
-      openEditYear(yearId);
-      els.editYearMessage.innerHTML = '<div class="success">Updated the current season.</div>';
-    } catch (err) {
-      els.editYearMessage.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
-    }
-  });
-
   // Lock/unlock the edited season: toggles whether players can still submit
   // new rounds into it (admins are unaffected either way). Re-opens the panel
   // afterward so the button label reflects the new state.
@@ -1883,6 +1847,12 @@
   });
   els.walkAddPlayerRow.addEventListener('click', () => walkAddNewPlayerRow());
   els.walkConfirmBtn.addEventListener('click', () => walkConfirm());
+  // Switching the source season starts the returning-player picks over.
+  els.walkImportFrom.addEventListener('change', () => {
+    walk.importFromYearId = els.walkImportFrom.value;
+    walk.returningTokens = [];
+    renderWalkStep2();
+  });
 
   // Hamburger menu wiring (Reqs 1.2-1.9). #menuToggle is a real <button>, so
   // Enter/Space activate it natively; aria-expanded is kept in sync by
@@ -1930,6 +1900,15 @@
     closeMenu();
     if (typeof openYearMgmt === 'function') openYearMgmt();
     // else: Year Management controller (Task 5.1) not present yet -- no-op.
+  });
+  // Ends the session server-side (best effort -- the local session is
+  // dropped either way), then reloads so every view and panel starts fresh
+  // on the login screen. The menu stays open meanwhile so the busy label shows.
+  els.menuLogout.addEventListener('click', async () => {
+    await UI.withBusy(els.menuLogout, 'Logging out…', () =>
+      Api.post({ action: 'adminLogout', session }).catch(() => {}));
+    sessionStorage.removeItem('adminSession');
+    location.reload();
   });
 
   // Try to resume an existing session.

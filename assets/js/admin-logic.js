@@ -16,43 +16,34 @@
 })(typeof window !== 'undefined' ? window : this, function () {
   'use strict';
 
-  // Predicate for whether a season row is the current season. The backend may
-  // encode IsCurrent as a boolean `true` or the strings "TRUE"/"true", so all
-  // three are accepted; everything else (false, undefined, missing) is rejected.
-  // Used as the `isCurrent` predicate passed into resolveViewingYearId.
-  function isCurrentYearRow(row) {
-    if (!row) return false;
-    return row.IsCurrent === true || row.IsCurrent === 'TRUE' || row.IsCurrent === 'true';
-  }
-
-  // Same true/"TRUE"/"true" tolerance as isCurrentYearRow, for the IsLocked flag.
+  // Whether a season row is locked. The backend may encode IsLocked as a
+  // boolean `true` or the strings "TRUE"/"true", so all three are accepted;
+  // everything else (false, undefined, missing) is rejected.
   function isYearLockedRow(row) {
     if (!row) return false;
     return row.IsLocked === true || row.IsLocked === 'TRUE' || row.IsLocked === 'true';
   }
 
   // Pure precedence resolver for which season the dashboard should view on load.
-  // Precedence: a stored id that matches a loaded season -> the current season
-  // -> the most-recently-created season -> null (no seasons). No DOM, no
-  // storage; all inputs are passed in, so this is directly testable.
-  //   years:     array of season rows ({ YearID, CreatedAt, IsCurrent })
-  //   storedId:  the id read from the store (may be null / stale / unknown)
-  //   isCurrent: predicate (y) => boolean (reuses isCurrentYearRow)
+  // Precedence: a stored id that matches a loaded season -> the most-recently-
+  // created unlocked season -> the most-recently-created season -> null (no
+  // seasons). No DOM, no storage; all inputs are passed in, so this is
+  // directly testable.
+  //   years:    array of season rows ({ YearID, CreatedAt, IsLocked })
+  //   storedId: the id read from the store (may be null / stale / unknown)
   // Returns a YearID present in `years`, or null when `years` is empty. It never
   // returns an id absent from `years`.
-  function resolveViewingYearId(years, storedId, isCurrent) {
+  function resolveViewingYearId(years, storedId) {
     var list = Array.isArray(years) ? years : [];
     if (!list.length) return null;                                   // Req 3.6
     if (storedId && list.some(function (y) { return y.YearID === storedId; })) {
       return storedId;                                               // Req 3.2
     }
-    var predicate = typeof isCurrent === 'function' ? isCurrent : isCurrentYearRow;
-    var current = list.find(predicate);
-    if (current) return current.YearID;                              // Req 3.3
-    var newest = list.slice().sort(function (a, b) {
+    var newestFirst = list.slice().sort(function (a, b) {
       return new Date(b.CreatedAt) - new Date(a.CreatedAt);
-    })[0];
-    return newest ? newest.YearID : null;                            // Req 3.4
+    });
+    var open = newestFirst.find(function (y) { return !isYearLockedRow(y); });
+    return (open || newestFirst[0]).YearID;                          // Req 3.4
   }
 
   // Pure set-difference + sort behind populateAddExistingSelect(): given the
@@ -72,23 +63,23 @@
       .sort(function (a, b) { return String(a.Name).localeCompare(String(b.Name)); });
   }
 
-  // Pure previous-current roster lookup + sort behind renderImportCandidates():
-  // given the globally-existing players, the PlayerYears roster associations, and
-  // the current season's YearID, return exactly the players rostered to that
+  // Pure source-season roster lookup + sort behind renderWalkStep2(): given the
+  // globally-existing players, the PlayerYears roster associations, and the
+  // YearID of the season to copy players from, return exactly the players rostered to that
   // season (i.e. those whose Token matches a PlayerYears row with that YearID),
   // ordered ascending by Name. No player outside that roster is included; no
-  // player in it is omitted. Returns an empty array when currentYearId has no
+  // player in it is omitted. Returns an empty array when sourceYearId has no
   // matching PlayerYears rows or matches nothing; missing/empty players or
   // playerYears are treated as empty inputs. No DOM, no storage.
   //   players:       array of { Token, Name }
   //   playerYears:   array of { YearID, PlayerToken } roster associations
-  //   currentYearId: the YearID of the previous current season
-  function importCandidatesFrom(players, playerYears, currentYearId) {
+  //   sourceYearId:  the YearID of the season to copy players from
+  function importCandidatesFrom(players, playerYears, sourceYearId) {
     var list = Array.isArray(players) ? players : [];
     var years = Array.isArray(playerYears) ? playerYears : [];
     var rostered = new Set(
       years
-        .filter(function (r) { return r && r.YearID === currentYearId; })
+        .filter(function (r) { return r && r.YearID === sourceYearId; })
         .map(function (r) { return r.PlayerToken; })
     );
     return list
@@ -225,37 +216,27 @@
   // Order/annotate the season list for the Year Management view. Returns exactly
   // one row per input season (every YearID present once), ordered newest-first
   // by CreatedAt to mirror populateYearSelect's sort. Each row carries its
-  // YearID, Label, whether it is the current season (via the supplied `isCurrent`
-  // predicate, defaulting to isCurrentYearRow), `canMakeCurrent === !isCurrent`
-  // (Make-current is offered for exactly the non-current seasons), and whether
-  // it's locked (via isYearLockedRow -- locking isn't exclusive like current-
-  // ness, so this doesn't affect canMakeCurrent). A missing/non-array input
-  // yields an empty array. No DOM, no storage.
-  //   years:     array of { YearID, Label, CreatedAt, IsCurrent, IsLocked }
-  //   isCurrent: predicate (y) => boolean (reuses isCurrentYearRow)
-  //   -> [{ yearId, label, isCurrent, canMakeCurrent, isLocked }]  (newest-first)
-  function yearListRows(years, isCurrent) {
+  // YearID, Label, and whether it's locked (via isYearLockedRow). A
+  // missing/non-array input yields an empty array. No DOM, no storage.
+  //   years: array of { YearID, Label, CreatedAt, IsLocked }
+  //   -> [{ yearId, label, isLocked }]  (newest-first)
+  function yearListRows(years) {
     var list = Array.isArray(years) ? years : [];
-    var predicate = typeof isCurrent === 'function' ? isCurrent : isCurrentYearRow;
     return list
       .slice()
       .sort(function (a, b) {
         return new Date(b.CreatedAt) - new Date(a.CreatedAt);        // Reqs 4.1, 4.2
       })
       .map(function (y) {
-        var current = !!predicate(y);
         return {
           yearId: y.YearID,
           label: y.Label,
-          isCurrent: current,                                        // Reqs 4.2, 4.5
-          canMakeCurrent: !current,                                  // Reqs 4.4, 5.3
           isLocked: isYearLockedRow(y)
         };
       });
   }
 
   return {
-    isCurrentYearRow: isCurrentYearRow,
     isYearLockedRow: isYearLockedRow,
     resolveViewingYearId: resolveViewingYearId,
     existingPlayerCandidates: existingPlayerCandidates,

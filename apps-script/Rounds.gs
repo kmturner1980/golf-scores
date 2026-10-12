@@ -8,8 +8,9 @@ function isSummaryPayload_(payload) {
 function roundRowFields_(payload) {
   var summary = isSummaryPayload_(payload);
   var num = function (v) { return v === '' || v == null ? '' : Number(v); };
+  if (!payload.yearId) throw new Error('Season is required.');
   return {
-    Year: payload.yearId || getCurrentYearId_(),
+    Year: payload.yearId,
     Date: payload.date,
     Course: (payload.course || '').toString().trim(),
     Tees: (payload.tees || '').toString().trim(),
@@ -53,8 +54,8 @@ function validateRoundPayload_(payload) {
  * or, when payload.entryMode === 'summary', just round totals
  * (summaryPar, summaryScore, summaryHoles, and optionally
  * summaryFairwaysHit/summaryFairwaysAttempted/summaryGIR/summaryPutts/summaryPenalties).
- * The target season is payload.yearId, or the current season if omitted.
- * Unless payload.session is a valid admin session, the player must be
+ * The target season is payload.yearId, or the player's newest open season if
+ * omitted (a player page from before seasons could be picked). Unless payload.session is a valid admin session, the player must be
  * rostered for that season and it must not be locked.
  */
 function submitRound_(token, payload) {
@@ -66,7 +67,12 @@ function submitRound_(token, payload) {
   // only submit into a season they're on -- but neither applies to an admin
   // acting on a player's behalf (the admin dashboard's "Add Round" sends a
   // valid session alongside the token for exactly this reason).
-  var targetYearId = payload.yearId || getCurrentYearId_();
+  if (!payload.yearId) {
+    var open = playerSeasons_(token).filter(function (s) { return !s.isLocked; })[0];
+    if (!open) throw new Error('You aren\'t on the roster for any open season. Ask your coach.');
+    payload.yearId = open.yearId;
+  }
+  var targetYearId = payload.yearId;
   if (!isValidSession_(payload.session)) {
     var season = playerSeasons_(token).filter(function (s) { return s.yearId === targetYearId; })[0];
     if (!season) throw new Error('You aren\'t on the roster for that season.');
@@ -175,8 +181,7 @@ function updatePlayerRound_(token, roundId, payload) {
 /**
  * The seasons a player can see on their own page: every season they're
  * rostered for, newest first. Several can be open (unlocked) at once, e.g. a
- * junior high and a high school season. A player on no roster at all falls
- * back to the current season so their link still works.
+ * junior high and a high school season.
  */
 function playerSeasons_(token) {
   var rostered = {};
@@ -185,7 +190,6 @@ function playerSeasons_(token) {
   });
   var years = listYears_();
   var seasons = years.filter(function (y) { return rostered[y.YearID]; });
-  if (!seasons.length) seasons = years.filter(isCurrentYearRow_);
   // Years are appended as they're created, so reversed sheet order is newest first.
   return seasons.reverse().map(function (y) {
     return { yearId: y.YearID, label: y.Label, isLocked: isYearLockedRow_(y) };

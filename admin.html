@@ -25,6 +25,7 @@
   <nav id="menuPanel" class="menu-panel hidden" role="menu" aria-hidden="true" aria-labelledby="menuToggle">
     <button type="button" id="menuDashboard" class="menu-item" role="menuitem">Dashboard</button>
     <button type="button" id="menuYearMgmt" class="menu-item" role="menuitem">Year Management</button>
+    <button type="button" id="menuLogout" class="menu-item hidden" role="menuitem">Log Out</button>
   </nav>
 </header>
 <main>
@@ -102,11 +103,6 @@
         </div>
         <div id="editYearMessage"></div>
 
-        <!-- Make current: shown only when the edited season isn't current -->
-        <div class="field" style="margin-bottom:0.75rem">
-          <button type="button" id="editYearMakeCurrentBtn" class="secondary">Make This the Current Season</button>
-        </div>
-
         <!-- Lock/unlock: always shown; label toggles between the two states.
              Locking blocks players from submitting new rounds into this
              season -- admins can still add/edit/delete rounds regardless. -->
@@ -183,6 +179,10 @@
         <div id="walkStep2" class="hidden">
           <p class="muted">Pick which players to carry onto the new season. Nothing is
             selected by default, and you can create a season with no players.</p>
+          <div class="field">
+            <label for="walkImportFrom">Copy players from</label>
+            <select id="walkImportFrom"></select>
+          </div>
           <div id="walkReturningList"></div>
         </div>
 
