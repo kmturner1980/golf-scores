@@ -447,7 +447,7 @@
     const headerHtml = ROSTER_COLUMNS.map((c) => {
       const arrow = sortKey === c.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
       return `<th class="clickable" data-sort-key="${c.key}">${c.label}${arrow}</th>`;
-    }).join('');
+    }).join('') + '<th></th>';
     return `<table>
       <thead><tr>${headerHtml}</tr></thead>
       <tbody>${sorted.map(({ player, rounds, agg, avgDiff }) => `
@@ -464,6 +464,7 @@
           <td>${agg.birdies + agg.eagles}</td>
           <td>${agg.doubles}</td>
           <td>${agg.worse}</td>
+          <td><button type="button" class="secondary copy-player-link" data-token="${escapeHtml(player.Token)}" style="white-space:nowrap">Copy link</button></td>
         </tr>
       `).join('')}</tbody>
     </table>`;
@@ -497,6 +498,7 @@
             <div class="roster-card-row"><span class="roster-card-label">Doubles</span><span class="roster-card-value">${agg.doubles}</span></div>
             <div class="roster-card-row"><span class="roster-card-label">Worse</span><span class="roster-card-value">${agg.worse}</span></div>
             <button type="button" class="roster-card-detail secondary" data-token="${escapeHtml(player.Token)}">View full details</button>
+            <button type="button" class="roster-card-detail secondary copy-player-link" data-token="${escapeHtml(player.Token)}">Copy link</button>
           </div>
         </details>
       `;
@@ -564,8 +566,23 @@
     // Mobile card "View full details" control: opens the same player detail view
     // desktop opens on row click. The native <summary> toggle handles expand/
     // collapse on its own and must NOT navigate, so it gets no listener here.
-    els.rosterTable.querySelectorAll('.roster-card-detail').forEach((btn) => {
+    els.rosterTable.querySelectorAll('.roster-card-detail:not(.copy-player-link)').forEach((btn) => {
       btn.addEventListener('click', () => showPlayerDetail(btn.dataset.token));
+    });
+    // "Copy link" copies that player's personal page link. It sits inside the
+    // clickable row, so stop the click from also opening the player detail.
+    els.rosterTable.querySelectorAll('.copy-player-link').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const original = btn.textContent;
+        try {
+          await navigator.clipboard.writeText(playerLink(btn.dataset.token));
+          btn.textContent = 'Copied!';
+        } catch (err) {
+          btn.textContent = 'Copy failed';
+        }
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      });
     });
   }
 
