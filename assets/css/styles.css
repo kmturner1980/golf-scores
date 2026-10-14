@@ -255,6 +255,16 @@ button.secondary {
 
 button.secondary:hover:not(:disabled) { background: var(--blue-gray); }
 
+/* Compact icon-only button (e.g. the roster's copy-link control). */
+button.icon-button {
+  background: transparent;
+  color: var(--navy);
+  padding: 0.25rem;
+  line-height: 0;
+}
+
+button.icon-button:hover:not(:disabled) { background: var(--blue-gray); }
+
 button.danger {
   background: #fff;
   color: var(--danger);

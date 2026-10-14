@@ -442,6 +442,11 @@
     return sorted;
   }
 
+  // Standard "copy" glyph (two overlapping sheets) and the check shown briefly
+  // after a successful copy. Stroked in currentColor so they follow the button.
+  const COPY_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const CHECK_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
   function rosterTableHtml(rows) {
     const sorted = sortRows(rows);
     const headerHtml = ROSTER_COLUMNS.map((c) => {
@@ -464,7 +469,7 @@
           <td>${agg.birdies + agg.eagles}</td>
           <td>${agg.doubles}</td>
           <td>${agg.worse}</td>
-          <td><button type="button" class="secondary copy-player-link" data-token="${escapeHtml(player.Token)}" style="white-space:nowrap">Copy link</button></td>
+          <td><button type="button" class="icon-button copy-player-link" data-token="${escapeHtml(player.Token)}" title="Copy player link" aria-label="Copy link for ${escapeHtml(player.Name)}">${COPY_ICON}</button></td>
         </tr>
       `).join('')}</tbody>
     </table>`;
@@ -574,14 +579,20 @@
     els.rosterTable.querySelectorAll('.copy-player-link').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const original = btn.textContent;
+        const isIcon = btn.classList.contains('icon-button');
+        const original = btn.innerHTML;
         try {
           await navigator.clipboard.writeText(playerLink(btn.dataset.token));
-          btn.textContent = 'Copied!';
+          btn.innerHTML = isIcon ? CHECK_ICON : 'Copied!';
+          btn.title = 'Copied!';
         } catch (err) {
-          btn.textContent = 'Copy failed';
+          btn.textContent = isIcon ? '!' : 'Copy failed';
+          btn.title = 'Copy failed';
         }
-        setTimeout(() => { btn.textContent = original; }, 1500);
+        setTimeout(() => {
+          btn.innerHTML = original;
+          if (isIcon) btn.title = 'Copy player link';
+        }, 1500);
       });
     });
   }
