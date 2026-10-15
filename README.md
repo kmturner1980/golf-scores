@@ -195,7 +195,11 @@ it was entered in. Editing is turned off once that season is locked.
 
 When a round has a Course Rating and Slope Rating (from picking a verified
 tee, or typed in manually), the app computes the standard USGA-style score
-differential: `(113 / Slope Rating) × (score − Course Rating)`. This
+differential: `(113 / Slope Rating) × (score − Course Rating)`. For a
+9-hole round (or any round shorter than 18), the score is compared against
+the matching share of the 18-hole Course Rating — half of it for 9 holes —
+and the result is doubled (scaled to 18 holes) so it reads like, and
+averages with, a full round's differential. This
 normalizes a round for how hard the tee actually played, so it's more
 comparable across different courses than raw score — a 90 at a tough course
 can be a better round than an 85 at an easy one. It's shown as its own

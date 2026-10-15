@@ -104,6 +104,41 @@ function normalizeFairway_(v) {
   return FAIRWAY_VALUES_.indexOf(val) === -1 ? 'N' : val;
 }
 
+// First-putt distance buckets (must match PUTT_DISTANCE_OPTIONS in holeTable.js).
+var PUTT_DISTANCE_VALUES_ = ['0-3', '3-10', '10-20', '20-30', '30-50', '50+'];
+
+/**
+ * Sheets treats "3-10" and "10-20" like typed dates (March 10, October 20),
+ * so a bucket is written with a leading apostrophe to keep it as text --
+ * the apostrophe isn't part of the stored value.
+ */
+function puttDistanceCell_(v) {
+  var val = (v || '').toString().trim();
+  return PUTT_DISTANCE_VALUES_.indexOf(val) === -1 ? '' : "'" + val;
+}
+
+/**
+ * Maps a PuttDistance cell back to its bucket. Rows saved before
+ * puttDistanceCell_ existed may hold a Date instead ("3-10" -> March 10);
+ * those read back as "month-day", which is the original bucket.
+ */
+function normalizePuttDistance_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    var bucket = Utilities.formatDate(v, tz, 'M-d');
+    return PUTT_DISTANCE_VALUES_.indexOf(bucket) === -1 ? '' : bucket;
+  }
+  return v == null ? '' : v.toString();
+}
+
+/** All HoleScores rows, with PuttDistance normalized (see normalizePuttDistance_). */
+function listHoleScores_() {
+  return sheetToObjects_(SHEET_HOLE_SCORES).map(function (h) {
+    h.PuttDistance = normalizePuttDistance_(h.PuttDistance);
+    return h;
+  });
+}
+
 /** Shared by submitRound_ and updateRound_: validates and appends hole rows for a round. */
 function appendHoleScores_(roundId, holes) {
   holes.forEach(function (h) {
@@ -121,7 +156,7 @@ function appendHoleScores_(roundId, holes) {
       GIR: h.gir || 'N',
       Putts: h.putts === '' || h.putts == null ? '' : Number(h.putts),
       Penalties: h.penalty === '' || h.penalty == null ? 0 : Number(h.penalty),
-      PuttDistance: (h.puttDistance || '').toString().trim()
+      PuttDistance: puttDistanceCell_(h.puttDistance)
     });
   });
 }
@@ -214,7 +249,7 @@ function getPlayerHistory_(token) {
   var roundIds = {};
   rounds.forEach(function (r) { roundIds[r.RoundID] = true; });
 
-  var holeScores = sheetToObjects_(SHEET_HOLE_SCORES).filter(function (h) {
+  var holeScores = listHoleScores_().filter(function (h) {
     return roundIds[h.RoundID];
   });
 
@@ -235,7 +270,7 @@ function getAllData_() {
   return {
     players: sheetToObjects_(SHEET_PLAYERS),
     rounds: sheetToObjects_(SHEET_ROUNDS),
-    holeScores: sheetToObjects_(SHEET_HOLE_SCORES),
+    holeScores: listHoleScores_(),
     years: listYears_(),
     playerYears: listPlayerYears_()
   };

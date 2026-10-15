@@ -277,13 +277,23 @@ const Stats = {
   // once the tee's difficulty is normalized out. Needs a course rating and
   // slope rating for the tee played -- null if either is missing (e.g. an
   // "Other" course entered without them).
+  //
+  // Course Rating is always the 18-hole figure, so a shorter round (9 holes,
+  // or an 18 cut short) is compared against the matching share of it, then
+  // scaled back up to an 18-hole-equivalent differential -- otherwise a 45
+  // on the front nine reads as ~27 under a 72 rating. Scaling up keeps 9-
+  // and 18-hole rounds on the same footing for Avg Differential.
   scoreDifferential(round, holeRows) {
     const rating = round.CourseRating === '' || round.CourseRating == null ? null : Number(round.CourseRating);
     const slope = round.SlopeRating === '' || round.SlopeRating == null ? null : Number(round.SlopeRating);
     if (rating == null || !slope) return null;
     const { score } = Stats.roundScoreAndPar(round, holeRows);
     if (score == null) return null;
-    return (113 / slope) * (score - rating);
+    const holes = Stats.isSummaryRound(round)
+      ? Stats.holesCountFor(round)
+      : holeRows.filter((h) => Number(h.Par) && Number(h.Score)).length;
+    if (!holes) return null;
+    return (113 / slope) * (score - rating * holes / 18) * (18 / holes);
   },
 
   // Average score differential across rounds, tournament-weighted the same

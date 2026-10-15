@@ -153,6 +153,31 @@ function migrateAddPuttDistanceColumn() {
 }
 
 /**
+ * Run this once to repair 1st Putt values that Sheets turned into dates
+ * ("3-10" became March 10, "10-20" became October 20) before they were
+ * saved as text. The app already reads those correctly; this just fixes the
+ * sheet itself. Safe to run more than once.
+ */
+function repairPuttDistanceDates() {
+  var sheet = getSheet_(SHEET_HOLE_SCORES);
+  var values = sheet.getDataRange().getValues();
+  var col = values[0].indexOf('PuttDistance');
+  if (col === -1) {
+    Logger.log('No PuttDistance column -- nothing to do.');
+    return;
+  }
+  var fixed = 0;
+  for (var i = 1; i < values.length; i++) {
+    var v = values[i][col];
+    if (Object.prototype.toString.call(v) !== '[object Date]') continue;
+    var bucket = normalizePuttDistance_(v);
+    sheet.getRange(i + 1, col + 1).setNumberFormat('@').setValue(bucket);
+    fixed++;
+  }
+  Logger.log('Repaired ' + fixed + ' PuttDistance cell(s).');
+}
+
+/**
  * Run this once if your Years sheet was created before season locking
  * existed. Safe to run more than once. Existing years default to unlocked.
  */
